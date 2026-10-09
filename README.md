@@ -1,5 +1,5 @@
 # NearLab Kuka LWR 4+ ROS2 Base Controller
-This repository is based on kuka-lwr ROS API, upgraded to ROS2 Humble with some self defined controllers.
+This repository is based on [kuka-lwr](https://github.com/CentroEPiaggio/kuka-lwr), upgraded to ROS2 Humble with some self defined controllers.
 
 ## Project Structure
 ```bash
