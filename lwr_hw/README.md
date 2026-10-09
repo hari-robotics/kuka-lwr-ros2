@@ -36,21 +36,23 @@ mode also claims stiffness/damping/set_point; Cartesian mode claims the original
 30 scalar GPIO resources. Mixed arm-wide modes and incomplete claims are rejected.
 Effort mode uses KRL strategy 30 with zero joint stiffness and additional torque.
 
-The FRI adapter now exchanges packets from the ros2_control read cycle, so one
-thread owns the unchanged `friRemote` buffers. Position/impedance calls still
-prepare the command for the next exchange; no background thread races with
-read/write or mode switching. `receive_timeout_ms` defaults to 100 ms and bounds
-each receive (valid range 1..10000). Send/receive failures reject further commands
-until reactivation; stopping releases the socket even after a failed handshake.
+As in ROS 1, a dedicated communication thread owns the `friRemote` transport
+and answers every measurement packet at the rate configured on the KRC (KRL /
+teach pendant), independent of the ros2_control `update_rate`. Exchanging
+packets inside the ros2_control read cycle left packets unanswered whenever the
+controller loop was slower than, or jittered against, the FRI period; the KRC
+then degraded the communication quality and dropped out of command mode.
+`read` copies the latest measurement and `write` hands the next command to the
+thread under a short lock; the thread replies immediately after each receive,
+so the reflected sequence and latency belong to that packet. Velocities are
+differentiated over the FRI packets actually received. The KRL command/monitor
+handshakes are performed through the same thread. `receive_timeout_ms` defaults
+to 100 ms and bounds each receive (valid range 1..10000). A send/receive failure
+or a handshake timeout stops the exchange and rejects further commands until
+reactivation; stopping joins the thread and releases the socket.
 This bounds host-side waiting, not robot stopping time. Real communication
 quality and controller behavior still require hardware validation.
 The supplied KRL opens a 2 ms connection; real bringup defaults to 500 Hz.
-
-The ROS 2 FRI adapter receives the current measurement before sending its reply,
-reflecting that measurement's sequence immediately. Commands prepared by `write`
-are used in the next exchange. This avoids adding a full controller update period
-to the reply latency. The bundled `friRemote::doDataExchange` API itself retains
-its original send/receive order for other callers.
 
 `/lwr/emergency_stop` retains its Bool topic. The adapter holds the measured
 position and clears additional effort/wrench commands while it is true. This is
