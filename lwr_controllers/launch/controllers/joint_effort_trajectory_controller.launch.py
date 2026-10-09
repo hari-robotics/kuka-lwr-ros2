@@ -1,7 +1,11 @@
+from pathlib import Path
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch_ros.actions import Node
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
-    return LaunchDescription([Node(package='controller_manager', executable='spawner', output='screen',
-        arguments=['joint_effort_trajectory_controller', '-c', '/lwr/controller_manager'])])
+    launch = Path(get_package_share_directory('lwr_controllers')) / 'launch/load_controller.launch.py'
+    return LaunchDescription([IncludeLaunchDescription(PythonLaunchDescriptionSource(str(launch)),
+        launch_arguments={'controller': 'joint_effort_trajectory_controller'}.items())])

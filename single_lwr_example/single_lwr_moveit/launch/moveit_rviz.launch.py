@@ -15,14 +15,16 @@ def _launch(context):
     spec.loader.exec_module(module)
     boolean = lambda name: LaunchConfiguration(name).perform(context).lower() in ('true', '1')
     simulation = boolean('use_sim_time')
+    hardware = 'gazebo' if simulation else ('mock' if boolean('use_mock_hardware') else 'real')
     return [Node(package='rviz2', executable='rviz2', output='screen',
              condition=IfCondition(LaunchConfiguration('use_rviz')),
              arguments=['-d', str(package / 'launch/moveit.rviz')],
-             parameters=[module.get_config('gazebo' if simulation else 'mock', boolean('t1_limits')),
+             parameters=[module.get_config(hardware, boolean('t1_limits')),
                          {'use_sim_time': simulation}])]
 
 
 def generate_launch_description():
     return LaunchDescription([DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('t1_limits', default_value='false'),
+        DeclareLaunchArgument('use_mock_hardware', default_value='false'),
         DeclareLaunchArgument('use_rviz', default_value='true'), OpaqueFunction(function=_launch)])

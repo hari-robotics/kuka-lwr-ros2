@@ -11,9 +11,10 @@ ament_target_dependencies(cartesian_position_node
   rclcpp sensor_msgs std_msgs geometry_msgs lwr_controllers kdl_parser orocos_kdl_vendor)
 install(TARGETS cartesian_position_node DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
-if(BUILD_TESTING)
-  find_package(ament_cmake_pytest REQUIRED)
-  ament_add_pytest_test(test_cartesian_position test/test_cartesian_position.py TIMEOUT 90
-    APPEND_ENV ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_test_logs)
+# Tests live in test/ and stay out of the default (user) build and install space.
+# Build them explicitly: colcon build --cmake-args -DLWR_BUILD_TESTS=ON
+option(LWR_BUILD_TESTS "Build the test suite in test/ (also requires BUILD_TESTING)" OFF)
+if(BUILD_TESTING AND LWR_BUILD_TESTS)
+  add_subdirectory(test)
 endif()
 ament_package()

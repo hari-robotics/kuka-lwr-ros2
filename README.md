@@ -38,14 +38,26 @@ sudo apt install -y liborocos-kdl-dev libeigen3-dev libboost-all-dev \
 ```
 
 
-### Build and verify
+### Build
 ```bash
 colcon build
 source install/setup.bash
 # zsh users: source install/setup.zsh
-colcon test
-colcon test-result --verbose
 ```
+
+### Tests (opt-in)
+Test code is isolated from production code: each package keeps its tests in
+`test/` (with its own `test/CMakeLists.txt`), and they are neither compiled nor
+installed by a normal `colcon build`. Build and run them explicitly, ideally in
+a separate workspace build directory:
+```bash
+colcon build --build-base build_test --install-base install_test \
+  --cmake-args -DLWR_BUILD_TESTS=ON
+colcon test --build-base build_test --install-base install_test
+colcon test-result --test-result-base build_test --verbose
+```
+Test sources are kept locally (see `.gitignore`); only the per-package
+`test/CMakeLists.txt` recipes are tracked.
 
 ## Configuration
 You can edit the launching configuration in `single_lwr_example/single_lwr_launch/launch/single_lwr_tool.launch.py`:
@@ -67,6 +79,24 @@ defaults = {
     'use_cartesian_position': 'true', # in cartesian coordinates
 }
 ```
+
+## Launch logic (same as ROS 1 `single_lwr.launch`)
+| `use_lwr_sim` | `lwr_powered` | hardware started by the launch |
+| --- | --- | --- |
+| `true` | `false` | Gazebo (default) |
+| `false` | `true` | real robot through FRI (`lwr_hw`) |
+| `false` | `false` | none: spawners wait for an external `/lwr/controller_manager`, e.g. `ros2 launch lwr_hw lwr_hw.launch.py ...` |
+
+Selecting both `use_lwr_sim` and `lwr_powered` is rejected. ros2_control mock
+hardware is never chosen implicitly; it is only used by
+`single_lwr_moveit/demo.launch.py` or with an explicit `use_mock_hardware:=true`.
+
+As in ROS 1, `single_lwr.launch.py` always spawns `joint_state_controller` and
+`arm_state_controller` plus `controllers`, loads `stopped_controllers` inactive,
+republishes `/lwr/joint_states` on `/joint_states`, defaults `use_rviz` and
+`load_moveit` to `false`, and opens MoveIt's RViz whenever `load_moveit:=true`.
+`single_lwr_tool.launch.py` keeps this workspace's own defaults (RViz and
+`cartesian_position_node` enabled).
 
 ## Run with gazebo simulator
 To launch gazebo simulator with rviz:

@@ -37,10 +37,11 @@ source install/setup.bash
 ros2 launch single_lwr_launch single_lwr.launch.py use_lwr_sim:=true load_moveit:=true use_rviz:=true
 ```
 
-For RViz with mock hardware instead of Gazebo:
+For RViz with ros2_control mock hardware instead of Gazebo (development only;
+mock hardware must be requested explicitly):
 
 ```bash
-ros2 launch single_lwr_launch single_lwr.launch.py use_lwr_sim:=false lwr_powered:=false use_rviz:=true
+ros2 launch single_lwr_launch single_lwr.launch.py use_lwr_sim:=false lwr_powered:=false use_mock_hardware:=true use_rviz:=true
 ```
 
 The single-arm assembly mounts directly to `world` at zero height, matching

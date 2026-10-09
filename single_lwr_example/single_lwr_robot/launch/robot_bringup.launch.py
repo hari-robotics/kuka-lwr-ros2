@@ -58,11 +58,25 @@ def _existing_controller_manager(domain):
             ros_context.shutdown()
 
 
+def _hardware(context):
+    from launch.substitutions import LaunchConfiguration
+    boolean = lambda key: LaunchConfiguration(key).perform(context).lower() in ('true', '1')
+    selected = [name for name, key in (('gazebo', 'use_lwr_sim'), ('real', 'lwr_powered'),
+                                       ('mock', 'use_mock_hardware')) if boolean(key)]
+    if len(selected) > 1:
+        raise ValueError('use_lwr_sim, lwr_powered and use_mock_hardware are mutually exclusive')
+    # None matches ROS 1 with use_lwr_sim:=false lwr_powered:=false: no hardware
+    # is started here and the spawners wait for an external /lwr/controller_manager
+    # (e.g. lwr_hw.launch.py). Mock hardware is never selected implicitly.
+    return selected[0] if selected else None
+
+
 def _check_single_instance(context):
     domain = int(context.environment.get('ROS_DOMAIN_ID', '0'))
     lock = _acquire_instance_lock(domain)
     try:
-        if _existing_controller_manager(domain):
+        # An external controller manager is expected when this launch starts no hardware.
+        if _hardware(context) is not None and _existing_controller_manager(domain):
             raise RuntimeError(
                 f'/lwr/controller_manager already exists in ROS_DOMAIN_ID={domain}. '
                 'Stop the previous robot/Gazebo launch with Ctrl+C before restarting. '
@@ -79,8 +93,8 @@ def _launch(context):
     value = lambda key: LaunchConfiguration(key).perform(context)
     boolean = lambda key: value(key).lower() in ('true', '1')
     robot = Path(get_package_share_directory('single_lwr_robot'))
-    simulation = boolean('use_lwr_sim')
-    hardware = 'gazebo' if simulation else ('real' if boolean('lwr_powered') else 'mock')
+    hardware = _hardware(context)
+    simulation = hardware == 'gazebo'
     if hardware == 'real':
         try:
             get_package_share_directory('lwr_hw')
@@ -96,7 +110,7 @@ def _launch(context):
     with tempfile.NamedTemporaryFile(mode='w', prefix='single_lwr_controllers_', suffix='.yaml', delete=False) as output:
         control_file = output.name
         description = xacro.process_file(str(robot / 'robot' / (value('robot_name') + '.urdf.xacro')),
-            mappings={'ros2_control_hardware_type': hardware,
+            mappings={'ros2_control_hardware_type': hardware or 'real',
                       'ros2_control_params_file': control_file,
                       'use_stiffness_joints': 'false', 'fri_backend': value('fri_backend'),
                       'fri_port': value('port'), 'fri_ip': value('ip'), 'fri_init_file': value('file'),
@@ -131,9 +145,12 @@ def _launch(context):
                          arguments=['-world', 'default', '-name', value('robot_name'), '-param', 'robot_description']),
                     Node(package='ros_gz_bridge', executable='parameter_bridge', name='lwr_clock_bridge',
                          output='screen', parameters=[{'config_file': str(robot / 'config/clock_bridge.yaml')}])]))
-    else:
+    elif hardware is not None:
         actions.append(Node(package='controller_manager', executable='ros2_control_node', namespace='lwr',
                             output='screen', parameters=[{'robot_description': description}, control_file]))
+    else:
+        actions.append(LogInfo(msg='No LWR hardware selected (use_lwr_sim:=false lwr_powered:=false); '
+                                   'waiting for an external /lwr/controller_manager such as lwr_hw.launch.py.'))
     active = list(dict.fromkeys(['joint_state_controller', 'arm_state_controller'] + value('controllers').split()))
     inactive = value('stopped_controllers').split()
     if set(active) & set(inactive):
@@ -151,6 +168,8 @@ def _launch(context):
 def generate_launch_description():
     robot = Path(get_package_share_directory('single_lwr_robot'))
     defaults = {'robot_name': 'single_lwr_robot', 'use_lwr_sim': 'true', 'lwr_powered': 'false',
+                # Development aid only: ros2_control GenericSystem instead of a robot.
+                'use_mock_hardware': 'false',
                 'port': '49939', 'ip': '192.168.0.10', 'file': str(robot / 'config/980241-FRI-Driver.init'),
                 'fri_backend': 'fri', 'update_rate': '500', 'receive_timeout_ms': '100',
                 'controllers': 'joint_trajectory_controller',

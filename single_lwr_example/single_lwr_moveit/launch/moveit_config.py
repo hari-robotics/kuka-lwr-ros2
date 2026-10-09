@@ -5,7 +5,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 
 
-def get_config(hardware='mock', t1_limits=False):
+def get_config(hardware='real', t1_limits=False):
     package = Path(get_package_share_directory('single_lwr_moveit'))
     robot = Path(get_package_share_directory('single_lwr_robot'))
     load = lambda name: yaml.safe_load((package / 'config' / name).read_text())

@@ -1,5 +1,7 @@
-# Test sources and results
-test/
+# Test sources and results (kept local). Each package's test/CMakeLists.txt
+# is tracked so the opt-in test build (LWR_BUILD_TESTS=ON) stays reproducible.
+**/test/*
+!**/test/CMakeLists.txt
 tests/
 test_*.py
 test_*.cpp

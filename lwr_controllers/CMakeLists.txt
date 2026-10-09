@@ -35,15 +35,10 @@ install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 ament_export_targets(export_lwr_controllers HAS_LIBRARY_TARGET)
 ament_export_dependencies(${controller_dependencies} rosidl_default_runtime Eigen3)
-if(BUILD_TESTING)
-  find_package(ament_cmake_test REQUIRED)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_controller_lifecycle test/test_controller_lifecycle.cpp
-    APPEND_ENV ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_test_logs)
-  ament_target_dependencies(test_controller_lifecycle pluginlib controller_interface hardware_interface rclcpp rclcpp_lifecycle)
-  add_executable(test_lwr_plugins test/test_plugins.cpp)
-  ament_target_dependencies(test_lwr_plugins pluginlib controller_interface)
-  ament_add_test(plugin_loading COMMAND $<TARGET_FILE:test_lwr_plugins>
-    GENERATE_RESULT_FOR_RETURN_CODE_ZERO)
+# Tests live in test/ and stay out of the default (user) build and install space.
+# Build them explicitly: colcon build --cmake-args -DLWR_BUILD_TESTS=ON
+option(LWR_BUILD_TESTS "Build the test suite in test/ (also requires BUILD_TESTING)" OFF)
+if(BUILD_TESTING AND LWR_BUILD_TESTS)
+  add_subdirectory(test)
 endif()
 ament_package()

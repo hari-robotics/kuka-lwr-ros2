@@ -13,7 +13,8 @@ def _launch(context):
     spec = importlib.util.spec_from_file_location('single_lwr_moveit_config', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    config = module.get_config('gazebo' if boolean('use_sim_time') else 'mock', boolean('t1_limits'))
+    hardware = 'gazebo' if boolean('use_sim_time') else ('mock' if boolean('use_mock_hardware') else 'real')
+    config = module.get_config(hardware, boolean('t1_limits'))
     config.update(use_sim_time=boolean('use_sim_time'), allow_trajectory_execution=boolean('allow_trajectory_execution'))
     return [Node(package='moveit_ros_move_group', executable='move_group', output='screen',
                  parameters=[config], remappings=[('joint_states', '/lwr/joint_states')])]
@@ -22,5 +23,6 @@ def _launch(context):
 def generate_launch_description():
     return LaunchDescription([DeclareLaunchArgument('use_sim_time', default_value='false'),
                               DeclareLaunchArgument('t1_limits', default_value='false'),
+                              DeclareLaunchArgument('use_mock_hardware', default_value='false'),
                               DeclareLaunchArgument('allow_trajectory_execution', default_value='true'),
                               OpaqueFunction(function=_launch)])
