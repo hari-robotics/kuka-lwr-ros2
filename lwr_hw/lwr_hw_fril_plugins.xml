@@ -1,0 +1,3 @@
+<library path="lwr_hw_fril">
+  <class name="lwr_hw/LWRHWFRIL" type="lwr_hw::LWRHWFRIL" base_class_type="hardware_interface::SystemInterface"/>
+</library>

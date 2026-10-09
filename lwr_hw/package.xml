@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package format="3">
+  <name>lwr_hw</name>
+  <version>1.0.0</version>
+  <description>The lwr_hw package implementes real and simulation interfaces to the LWR 4+</description>
+  <maintainer email="cjrosales@gmail.com">Carlos J. Rosales</maintainer>
+  <maintainer email="marco.esposito@tum.de">Marco Esposito</maintainer>
+  <license>GPLv2</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>hardware_interface</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>pluginlib</depend>
+  <depend>urdf</depend>
+  <depend>kdl_parser</depend>
+  <depend>orocos_kdl_vendor</depend>
+  <depend>liborocos-kdl-dev</depend>
+  <!-- Installed FRIL headers use Boost, even though that backend is optional. -->
+  <depend>boost</depend>
+  <depend>joint_limits</depend>
+  <depend>control_toolbox</depend>
+  <depend>std_msgs</depend>
+  <depend>gz_ros2_control</depend>
+  <depend>angles</depend>
+  <depend>ignition-gazebo6</depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

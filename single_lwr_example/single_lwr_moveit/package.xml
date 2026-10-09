@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>single_lwr_moveit</name>
+  <version>0.2.0</version>
+  <description>
+     An automatically generated package with all the configuration and launch files for using the single_lwr_robot with the MoveIt Motion Planning Framework
+  </description>
+  <author email="assistant@moveit.ros.org">MoveIt Setup Assistant</author>
+  <maintainer email="assistant@moveit.ros.org">MoveIt Setup Assistant</maintainer>
+  <license>BSD</license>
+  <url type="website">http://moveit.ros.org/</url>
+  <url type="bugtracker">https://github.com/ros-planning/moveit_setup_assistant/issues</url>
+  <url type="repository">https://github.com/ros-planning/moveit_setup_assistant</url>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>single_lwr_robot</depend>
+  <depend>moveit_ros_move_group</depend>
+  <exec_depend>moveit_ros_planning</exec_depend>
+  <depend>moveit_kinematics</depend>
+  <depend>moveit_planners_ompl</depend>
+  <depend>moveit_simple_controller_manager</depend>
+  <depend>moveit_ros_visualization</depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>moveit_setup_assistant</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
+</package>

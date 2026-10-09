@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>lwr_controllers</name>
+  <version>0.1.0</version>
+  <description>lwr_controllers</description>
+  <maintainer email="cjrosales@gmail.com">Carlos J. Rosales</maintainer>
+  <maintainer email="marco.esposito@tum.de">Marco Esposito</maintainer>
+  <license>BSD</license>
+  <author>Manuel Bonilla</author>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <depend>controller_interface</depend>
+  <depend>hardware_interface</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>pluginlib</depend>
+  <depend>control_toolbox</depend>
+  <depend>realtime_tools</depend>
+  <depend>urdf</depend>
+  <depend>kdl_parser</depend>
+  <depend>orocos_kdl_vendor</depend>
+  <depend>liborocos-kdl-dev</depend>
+  <depend>boost</depend>
+  <depend>angles</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>control_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_kdl</depend>
+  <depend>eigen</depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+  <test_depend>ament_cmake_test</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+</package>

@@ -1,0 +1,43 @@
+# Test sources and results
+test/
+tests/
+test_*.py
+test_*.cpp
+*_test.py
+*_test.cpp
+test_results/
+Testing/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# ROS / colcon build outputs
+build/
+install/
+log/
+
+# CMake generated files (including in-source builds)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+Makefile
+ament_cmake_*/
+
+# Compiled objects and libraries
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.dll
+*.dylib
+*.exe
+*.out
+
+# Python bytecode
+__pycache__/
+*.py[cod]

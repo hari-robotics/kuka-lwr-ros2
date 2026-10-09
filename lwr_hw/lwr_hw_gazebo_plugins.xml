@@ -1,0 +1,5 @@
+<library path="lwr_hw_gazebo_plugin">
+  <class name="lwr_hw/LWRHWGazebo" type="lwr_hw::LWRHWGazebo" base_class_type="gz_ros2_control::GazeboSimSystemInterface">
+    <description>ROS 1 LWR simulation law adapted to Gazebo Fortress.</description>
+  </class>
+</library>

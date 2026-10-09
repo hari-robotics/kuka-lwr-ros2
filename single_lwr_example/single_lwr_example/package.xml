@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>single_lwr_example</name>
+  <version>0.1.0</version>
+  <description>The single_lwr_example package</description>
+  <maintainer email="marco.esposito@tum.de">Marco Esposito</maintainer>
+  <maintainer email="cjrosales@gmail.com">Carlos J. Rosales</maintainer>
+  <license>BSD</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>single_lwr_robot</depend>
+  <depend>single_lwr_launch</depend>
+  <depend>single_lwr_moveit</depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

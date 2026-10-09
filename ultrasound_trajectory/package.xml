@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>ultrasound_trajectory</name>
+  <version>0.1.0</version>
+  <description>ROS 2 ultrasound scanning and end-effector trajectory nodes for the KUKA LWR.</description>
+  <maintainer email="ilaria@todo.todo">ilaria</maintainer>
+  <license>TODO</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>control_msgs</depend>
+  <depend>rcl_interfaces</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>lwr_controllers</depend>
+  <depend>kdl_parser</depend>
+  <depend>orocos_kdl_vendor</depend>
+  <depend>liborocos-kdl-dev</depend>
+  <depend>urdf</depend>
+  <depend>eigen</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>joint_trajectory_controller</exec_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>rclpy</test_depend>
+  <test_depend>rosgraph_msgs</test_depend>
+  <test_depend>ament_index_python</test_depend>
+  <test_depend>python3-yaml</test_depend>
+  <test_depend>xacro</test_depend>
+  <test_depend>single_lwr_robot</test_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

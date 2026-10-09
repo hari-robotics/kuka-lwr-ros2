@@ -1,0 +1,6 @@
+<library path="lwr_hw_fri">
+  <class name="lwr_hw/LWRSystemHardware" type="lwr_hw::LWRHWFRI" base_class_type="hardware_interface::SystemInterface">
+    <description>Original KUKA FRI transport exposed through ros2_control.</description>
+  </class>
+  <class name="lwr_hw/LWRHWFRI" type="lwr_hw::LWRHWFRI" base_class_type="hardware_interface::SystemInterface"/>
+</library>

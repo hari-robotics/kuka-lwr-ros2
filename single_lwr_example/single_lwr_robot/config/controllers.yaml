@@ -1,0 +1,503 @@
+/lwr/controller_manager:
+  ros__parameters:
+    update_rate: 100
+    joint_state_controller:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+    arm_state_controller:
+      type: arm_state_controller/ArmStateController
+    gravity_compensation_controller:
+      type: lwr_controllers/GravityCompensation
+    joint_impedance_controller:
+      type: lwr_controllers/JointImpedanceController
+    inverse_dynamics_controller:
+      type: lwr_controllers/InverseDynamicsController
+    computed_torque_controller:
+      type: lwr_controllers/ComputedTorqueController
+    one_task_inverse_kinematics:
+      type: lwr_controllers/OneTaskInverseKinematics
+    cartesian_impedance_controller:
+      type: lwr_controllers/CartesianImpedanceController
+    multi_task_priority_inverse_kinematics:
+      type: lwr_controllers/MultiTaskPriorityInverseKinematics
+    one_task_inverse_dynamics_JL:
+      type: lwr_controllers/OneTaskInverseDynamicsJL
+    multi_task_priority_inverse_dynamics:
+      type: lwr_controllers/MultiTaskPriorityInverseDynamics
+    minimum_effort_inverse_dynamics:
+      type: lwr_controllers/MinimumEffortInverseDynamics
+    back_stepping_controller:
+      type: lwr_controllers/BacksteppingController
+    dynamics_sliding_mode_controller:
+      type: lwr_controllers/DynamicSlidingModeController
+    dynamics_sliding_mode_controller_task_space_controller:
+      type: lwr_controllers/DynamicSlidingModeControllerTaskSpace
+    joint_position_position_controller:
+      type: forward_command_controller/ForwardCommandController
+    joint_effort_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+    joint_position_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+/lwr/joint_state_controller:
+  ros__parameters:
+    publish_rate: 100
+    joints:
+    - lwr_a1_joint
+    - lwr_a2_joint
+    - lwr_e1_joint
+    - lwr_a3_joint
+    - lwr_a4_joint
+    - lwr_a5_joint
+    - lwr_a6_joint
+    interfaces:
+    - position
+    - velocity
+    - effort
+/lwr/joint_trajectory_controller:
+  ros__parameters:
+    joints:
+    - lwr_a1_joint
+    - lwr_a2_joint
+    - lwr_e1_joint
+    - lwr_a3_joint
+    - lwr_a4_joint
+    - lwr_a5_joint
+    - lwr_a6_joint
+    command_interfaces:
+    - position
+    state_interfaces:
+    - position
+    - velocity
+/lwr/arm_state_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    publish_rate: 30
+/lwr/gravity_compensation_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+/lwr/joint_impedance_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    stiffness_gains: 300
+    damping_gains: 0.7
+/lwr/inverse_dynamics_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+/lwr/computed_torque_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+/lwr/one_task_inverse_kinematics:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+/lwr/cartesian_impedance_controller:
+  ros__parameters:
+    robot_name: lwr
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    publish_cartesian_pose: false
+/lwr/multi_task_priority_inverse_kinematics:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    pid_lwr_a1_joint:
+      p: 250
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a2_joint:
+      p: 220
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_e1_joint:
+      p: 150
+      i: 6
+      d: 20
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a3_joint:
+      p: 150
+      i: 5
+      d: 12
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a4_joint:
+      p: 90
+      i: 5
+      d: 10
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a5_joint:
+      p: 40
+      i: 5
+      d: 7
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a6_joint:
+      p: 15
+      i: 2
+      d: 5
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+/lwr/one_task_inverse_dynamics_JL:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    pid_lwr_a1_joint:
+      p: 250
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a2_joint:
+      p: 220
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_e1_joint:
+      p: 150
+      i: 6
+      d: 20
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a3_joint:
+      p: 150
+      i: 5
+      d: 12
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a4_joint:
+      p: 90
+      i: 5
+      d: 10
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a5_joint:
+      p: 40
+      i: 5
+      d: 7
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a6_joint:
+      p: 15
+      i: 2
+      d: 5
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+/lwr/multi_task_priority_inverse_dynamics:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    pid_lwr_a1_joint:
+      p: 250
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a2_joint:
+      p: 220
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_e1_joint:
+      p: 150
+      i: 6
+      d: 20
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a3_joint:
+      p: 150
+      i: 5
+      d: 12
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a4_joint:
+      p: 90
+      i: 5
+      d: 10
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a5_joint:
+      p: 40
+      i: 5
+      d: 7
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a6_joint:
+      p: 15
+      i: 2
+      d: 5
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+/lwr/minimum_effort_inverse_dynamics:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    pid_lwr_a1_joint:
+      p: 250
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a2_joint:
+      p: 220
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_e1_joint:
+      p: 150
+      i: 6
+      d: 20
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a3_joint:
+      p: 150
+      i: 5
+      d: 12
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a4_joint:
+      p: 90
+      i: 5
+      d: 10
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a5_joint:
+      p: 40
+      i: 5
+      d: 7
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a6_joint:
+      p: 15
+      i: 2
+      d: 5
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+/lwr/back_stepping_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    pid_lwr_a1_joint:
+      p: 250
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a2_joint:
+      p: 220
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_e1_joint:
+      p: 150
+      i: 6
+      d: 20
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a3_joint:
+      p: 150
+      i: 5
+      d: 12
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a4_joint:
+      p: 90
+      i: 5
+      d: 10
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a5_joint:
+      p: 40
+      i: 5
+      d: 7
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a6_joint:
+      p: 15
+      i: 2
+      d: 5
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+/lwr/dynamics_sliding_mode_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    pid_lwr_a1_joint:
+      p: 250
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a2_joint:
+      p: 220
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_e1_joint:
+      p: 150
+      i: 6
+      d: 20
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a3_joint:
+      p: 150
+      i: 5
+      d: 12
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a4_joint:
+      p: 90
+      i: 5
+      d: 10
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a5_joint:
+      p: 40
+      i: 5
+      d: 7
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a6_joint:
+      p: 15
+      i: 2
+      d: 5
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+/lwr/dynamics_sliding_mode_controller_task_space_controller:
+  ros__parameters:
+    root_name: lwr_base_link
+    tip_name: lwr_7_link
+    pid_lwr_a1_joint:
+      p: 250
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a2_joint:
+      p: 220
+      i: 10
+      d: 30
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_e1_joint:
+      p: 150
+      i: 6
+      d: 20
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a3_joint:
+      p: 150
+      i: 5
+      d: 12
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a4_joint:
+      p: 90
+      i: 5
+      d: 10
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a5_joint:
+      p: 40
+      i: 5
+      d: 7
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+    pid_lwr_a6_joint:
+      p: 15
+      i: 2
+      d: 5
+      i_clamp_min: -0.3
+      i_clamp_max: 0.3
+/lwr/joint_position_position_controller:
+  ros__parameters:
+    joints:
+    - lwr_a1_joint
+    - lwr_a2_joint
+    - lwr_e1_joint
+    - lwr_a3_joint
+    - lwr_a4_joint
+    - lwr_a5_joint
+    - lwr_a6_joint
+    interface_name: position
+/lwr/joint_effort_trajectory_controller:
+  ros__parameters:
+    joints:
+    - lwr_a1_joint
+    - lwr_a2_joint
+    - lwr_e1_joint
+    - lwr_a3_joint
+    - lwr_a4_joint
+    - lwr_a5_joint
+    - lwr_a6_joint
+    command_interfaces:
+    - effort
+    state_interfaces:
+    - position
+    - velocity
+    gains:
+      lwr_a1_joint:
+        p: 250.0
+        i: 10.0
+        d: 30.0
+        i_clamp: 0.3
+      lwr_a2_joint:
+        p: 220.0
+        i: 10.0
+        d: 30.0
+        i_clamp: 0.3
+      lwr_e1_joint:
+        p: 150.0
+        i: 6.0
+        d: 20.0
+        i_clamp: 0.3
+      lwr_a3_joint:
+        p: 150.0
+        i: 5.0
+        d: 12.0
+        i_clamp: 0.3
+      lwr_a4_joint:
+        p: 90.0
+        i: 5.0
+        d: 10.0
+        i_clamp: 0.3
+      lwr_a5_joint:
+        p: 40.0
+        i: 5.0
+        d: 7.0
+        i_clamp: 0.3
+      lwr_a6_joint:
+        p: 15.0
+        i: 2.0
+        d: 5.0
+        i_clamp: 0.3
+/lwr/joint_position_trajectory_controller:
+  ros__parameters:
+    joints:
+    - lwr_a1_joint
+    - lwr_a2_joint
+    - lwr_e1_joint
+    - lwr_a3_joint
+    - lwr_a4_joint
+    - lwr_a5_joint
+    - lwr_a6_joint
+    command_interfaces:
+    - position
+    state_interfaces:
+    - position
+    - velocity

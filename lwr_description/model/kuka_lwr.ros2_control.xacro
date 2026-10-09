@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- ROS 2 replacement for the SimpleTransmission macro; joint order is unchanged. -->
+  <xacro:macro name="kuka_lwr_ros2_control" params="name">
+    <ros2_control name="${name}_LWR" type="system">
+      <hardware>
+        <plugin>${dict(gazebo='lwr_hw/LWRHWGazebo', mock='mock_components/GenericSystem', real=dict(fri='lwr_hw/LWRSystemHardware', fril='lwr_hw/LWRHWFRIL')['$(arg fri_backend)'])['$(arg ros2_control_hardware_type)']}</plugin>
+        <param name="name">${name}</param>
+        <param name="port">$(arg fri_port)</param>
+        <param name="ip">$(arg fri_ip)</param>
+        <param name="file">$(arg fri_init_file)</param>
+        <param name="receive_timeout_ms">$(arg fri_receive_timeout_ms)</param>
+        <param name="root">${'$(arg hw_root)' or name + '_base_link'}</param>
+        <param name="tip">${'$(arg hw_tip)' or name + '_7_link'}</param>
+      </hardware>
+      <joint name="${name}_a1_joint">
+        <command_interface name="position"/>
+        <command_interface name="effort"/>
+        <command_interface name="stiffness"/>
+        <command_interface name="damping"/>
+        <command_interface name="set_point"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="${name}_a2_joint">
+        <command_interface name="position"/>
+        <command_interface name="effort"/>
+        <command_interface name="stiffness"/>
+        <command_interface name="damping"/>
+        <command_interface name="set_point"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="${name}_e1_joint">
+        <command_interface name="position"/>
+        <command_interface name="effort"/>
+        <command_interface name="stiffness"/>
+        <command_interface name="damping"/>
+        <command_interface name="set_point"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="${name}_a3_joint">
+        <command_interface name="position"/>
+        <command_interface name="effort"/>
+        <command_interface name="stiffness"/>
+        <command_interface name="damping"/>
+        <command_interface name="set_point"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="${name}_a4_joint">
+        <command_interface name="position"/>
+        <command_interface name="effort"/>
+        <command_interface name="stiffness"/>
+        <command_interface name="damping"/>
+        <command_interface name="set_point"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="${name}_a5_joint">
+        <command_interface name="position"/>
+        <command_interface name="effort"/>
+        <command_interface name="stiffness"/>
+        <command_interface name="damping"/>
+        <command_interface name="set_point"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="${name}_a6_joint">
+        <command_interface name="position"/>
+        <command_interface name="effort"/>
+        <command_interface name="stiffness"/>
+        <command_interface name="damping"/>
+        <command_interface name="set_point"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <xacro:if value="${'$(arg ros2_control_hardware_type)' != 'mock'}">
+        <xacro:property name="cartesian_names" value="${['rot_xx', 'rot_yx', 'rot_zx', 'pos_x', 'rot_xy', 'rot_yy', 'rot_zy', 'pos_y', 'rot_xz', 'rot_yz', 'rot_zz', 'pos_z'] + [axis + '_' + kind for kind in ['stiffness', 'damping', 'wrench'] for axis in ['X', 'Y', 'Z', 'A', 'B', 'C']]}"/>
+        <xacro:macro name="lwr_cartesian_interfaces" params="resources">
+          <xacro:if value="${resources}">
+            <gpio name="${name + '_' + resources[0]}">
+            <command_interface name="position"/><state_interface name="position"/>
+            </gpio>
+            <xacro:lwr_cartesian_interfaces resources="${resources[1:]}"/>
+          </xacro:if>
+        </xacro:macro>
+        <xacro:lwr_cartesian_interfaces resources="${cartesian_names}"/>
+      </xacro:if>
+    </ros2_control>
+  </xacro:macro>
+</robot>

@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+	<xacro:macro name="kuka_lwr_gazebo" params="name">
+
+		<gazebo>
+			<plugin name="gz_ros2_control::GazeboSimROS2ControlPlugin" filename="gz_ros2_control-system">
+				<parameters>$(arg ros2_control_params_file)</parameters>
+				<ros><namespace>/lwr</namespace></ros>
+			</plugin>
+		</gazebo>
+
+		<gazebo reference="${name}_base_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+		<gazebo reference="${name}_1_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+		<gazebo reference="${name}_2_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+		<gazebo reference="${name}_3_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+		<gazebo reference="${name}_4_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+		<gazebo reference="${name}_5_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+		<gazebo reference="${name}_6_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+		<gazebo reference="${name}_7_link">
+			<gravity>true</gravity>
+		</gazebo>
+
+	</xacro:macro>
+
+</robot>

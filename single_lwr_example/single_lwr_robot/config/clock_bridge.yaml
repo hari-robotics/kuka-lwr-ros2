@@ -1,0 +1,9 @@
+# Subscribe only to the world started by robot_bringup, not Gazebo's global /clock.
+- ros_topic_name: /clock
+  gz_topic_name: /world/default/clock
+  ros_type_name: rosgraph_msgs/msg/Clock
+  gz_type_name: ignition.msgs.Clock
+  direction: GZ_TO_ROS
+  publisher_queue: 1
+  subscriber_queue: 1
+  lazy: false

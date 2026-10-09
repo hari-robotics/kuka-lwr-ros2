@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>cartesian_position_node</name>
+  <version>0.1.0</version>
+  <description>URDF-based flange and TCP Cartesian state publisher for the LWR.</description>
+  <maintainer email="valentin@todo.todo">valentin</maintainer>
+  <license>TODO</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>lwr_controllers</depend>
+  <depend>kdl_parser</depend>
+  <depend>orocos_kdl_vendor</depend>
+  <depend>liborocos-kdl-dev</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>rclpy</test_depend>
+  <test_depend>ament_index_python</test_depend>
+  <test_depend>xacro</test_depend>
+  <test_depend>python3-yaml</test_depend>
+  <test_depend>single_lwr_robot</test_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="tool" params="prefix connected_to">
+    <joint name="${prefix}tool_joint" type="fixed">
+      <parent link="${connected_to}" />
+      <child link="${prefix}tool" />
+      <origin rpy="0 0 0" xyz="0 0 0.0275" />
+    </joint>
+    <link name="${prefix}tool">
+      <visual>
+        <geometry>
+          <cylinder length="0.11" radius="0.01" />
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.11" radius="0.01" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}ee_tool_joint" type="fixed">
+      <parent link="${prefix}tool" />
+      <child link="${prefix}tool_ee" />
+      <origin rpy="0 0 0" xyz="0 0 0.055" />
+    </joint>
+    <link name="${prefix}tool_ee">
+      <visual>
+        <geometry>
+          <cylinder length="0.11" radius="0.005" />
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.01" radius="0.005" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${prefix}tcp_joint" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 0.116" />
+      <parent link="${prefix}tool_ee" />
+      <child link="${prefix}tcp" />
+    </joint>
+    <link name="${prefix}tcp" />
+  </xacro:macro>
+</robot>
