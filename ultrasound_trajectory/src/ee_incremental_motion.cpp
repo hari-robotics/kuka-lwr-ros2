@@ -1,6 +1,3 @@
-#include "ultrasound_trajectory/ros2_support.hpp"
-#include <functional>
-#include <rclcpp/create_timer.hpp>
 /*
  * ultrasound_traj_node.cpp
  *
@@ -17,12 +14,12 @@
  * Topic out : /lwr/one_task_inverse_kinematics/command (lwr_controllers/PoseRPY)
  */
 
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/float64.hpp>
-#include <geometry_msgs/msg/twist.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 //  kuka-lwr Controllers Msgs
-#include <lwr_controllers/msg/arm_state.hpp>
-#include <lwr_controllers/msg/pose_rpy.hpp>
+#include "lwr_controllers/msg/arm_state.hpp"
+#include "lwr_controllers/msg/pose_rpy.hpp"
 //  Eigen lib
 #include <Eigen/Core>
 #include <Eigen/Geometry>   // AngleAxisd, rotation-matrix composition
@@ -32,11 +29,12 @@
 
 using namespace std;
 
-class UltrasoundTrajNode : public rclcpp::Node {
+class UltrasoundTrajNode {
 
 private:
-    rclcpp::Subscription<lwr_controllers::msg::PoseRPY>::SharedPtr sub_pose;    // current EE pose
-    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_action;  // incoming 6-DoF action
+    rclcpp::Node::SharedPtr nh = std::make_shared<rclcpp::Node>("ultrasound_traj_node");
+    rclcpp::SubscriptionBase::SharedPtr sub_pose;    // current EE pose
+    rclcpp::SubscriptionBase::SharedPtr sub_action;  // incoming 6-DoF action
 
     rclcpp::Publisher<lwr_controllers::msg::PoseRPY>::SharedPtr pub_command; // pose command to controller
 
@@ -81,25 +79,26 @@ private:
     // static constexpr double MAX_ANGULAR_STEP = 0.10;  // [rad] max rotation magnitude per step
 
 public:
-    UltrasoundTrajNode() : rclcpp::Node("ee_incremental_motion") {
-        sub_pose = create_subscription<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/end_effector", rclcpp::SensorDataQoS(), std::bind(&UltrasoundTrajNode::callback_pose, this, std::placeholders::_1));
-        sub_action = create_subscription<geometry_msgs::msg::Twist>("/ee_action", rclcpp::QoS(1), std::bind(&UltrasoundTrajNode::callback_action, this, std::placeholders::_1));
 
-        pub_command = create_publisher<lwr_controllers::msg::PoseRPY>("/lwr/one_task_inverse_kinematics/command", 10);
+    rclcpp::Node::SharedPtr node() { return nh; }  // ROS 2: node to spin in main()
+    UltrasoundTrajNode() {
+        sub_pose = nh->create_subscription<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/end_effector", 10, std::bind(&UltrasoundTrajNode::callback_pose, this, std::placeholders::_1));
+        sub_action = nh->create_subscription<geometry_msgs::msg::Twist>("/ee_action", 1, std::bind(&UltrasoundTrajNode::callback_action, this, std::placeholders::_1));
 
-        RCLCPP_INFO(get_logger(), "[ultrasound_traj_node] Ready. Waiting for first pose...");
+        pub_command = nh->create_publisher<lwr_controllers::msg::PoseRPY>("/lwr/one_task_inverse_kinematics/command", 10);
+
+        RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_node] Ready. Waiting for first pose...");
     }
 
     // ── action callback ───────────────────────────────────────────────────────
-    void callback_action(const geometry_msgs::msg::Twist::ConstSharedPtr& msg) {
-        if (!ultrasound_trajectory::finite_twist(*msg)) {return;}
+    void callback_action(const geometry_msgs::msg::Twist::ConstSharedPtr  msg) {
         if (!pose_initialized) {
-            RCLCPP_WARN(get_logger(), "[ultrasound_traj_node] Action received before pose is "
+            RCLCPP_WARN(nh->get_logger(), "[ultrasound_traj_node] Action received before pose is "
                      "initialised — ignoring.");
             return;
         }
         if (executing) {
-            RCLCPP_WARN(get_logger(), "[ultrasound_traj_node] Still executing previous step — "
+            RCLCPP_WARN(nh->get_logger(), "[ultrasound_traj_node] Still executing previous step — "
                      "ignoring new action.");
             return;
         }
@@ -136,7 +135,7 @@ public:
             double lin_norm = dp_local.norm();
             if (lin_norm > MAX_LINEAR_STEP) {
                 dp_local *= MAX_LINEAR_STEP / lin_norm;
-                RCLCPP_WARN(get_logger(), "[ultrasound_traj_node] Linear step clamped: "
+                RCLCPP_WARN(nh->get_logger(), "[ultrasound_traj_node] Linear step clamped: "
                          "%.4f m -> %.4f m (MAX_LINEAR_STEP)", lin_norm, MAX_LINEAR_STEP);
             }
         }
@@ -147,7 +146,7 @@ public:
             double ang_norm = da.norm();
             if (ang_norm > MAX_ANGULAR_STEP) {
                 da *= MAX_ANGULAR_STEP / ang_norm;
-                RCLCPP_WARN(get_logger(), "[ultrasound_traj_node] Angular step clamped: "
+                RCLCPP_WARN(nh->get_logger(), "[ultrasound_traj_node] Angular step clamped: "
                          "%.4f rad -> %.4f rad (MAX_ANGULAR_STEP)", ang_norm, MAX_ANGULAR_STEP);
             }
         }
@@ -183,20 +182,19 @@ public:
 
         action_pending = true;
 
-        RCLCPP_INFO(get_logger(), "[ultrasound_traj_node] New action received (after clamping):");
-        RCLCPP_INFO(get_logger(), "  delta  : dx=%.4f  dy=%.4f  dz=%.4f  "
+        RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_node] New action received (after clamping):");
+        RCLCPP_INFO(nh->get_logger(), "  delta  : dx=%.4f  dy=%.4f  dz=%.4f  "
                  "droll=%.4f  dpitch=%.4f  dyaw=%.4f",
                  dp_local(0), dp_local(1), dp_local(2),
                  da(0), da(1), da(2));
-        RCLCPP_INFO(get_logger(), "  target : x=%.4f  y=%.4f  z=%.4f  "
+        RCLCPP_INFO(nh->get_logger(), "  target : x=%.4f  y=%.4f  z=%.4f  "
                  "roll=%.4f  pitch=%.4f  yaw=%.4f",
                  xt, yt, zt, rt, pt, yt_);
     }
 
     // ── pose callback (runs at whatever rate /cartesian_position/pose/end_effector
     //    publishes, measured ~200 Hz — trajectory timing does not depend on this) ──
-    void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr& pose_msg) {
-        if (!ultrasound_trajectory::finite_pose(*pose_msg)) {return;}
+    void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr  pose_msg) {
 
         // Update current EE state
         ee_x     = pose_msg->position.x;
@@ -216,7 +214,7 @@ public:
             command_msg.orientation.pitch = ee_pitch;
             command_msg.orientation.yaw   = ee_yaw;
             pose_initialized = true;
-            RCLCPP_INFO(get_logger(), "[ultrasound_traj_node] Pose initialised. "
+            RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_node] Pose initialised. "
                      "Waiting for /ee_action ...");
         }
 
@@ -224,8 +222,8 @@ public:
         if (action_pending) {
             action_pending  = false;
             executing       = true;
-            step_start_time = now();
-            RCLCPP_INFO(get_logger(), "[ultrasound_traj_node] Executing step (T=%.2f s) ...", T);
+            step_start_time = nh->now();
+            RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_node] Executing step (T=%.2f s) ...", T);
         }
 
         // ── interpolate and publish ───────────────────────────────────────────
@@ -233,11 +231,11 @@ public:
         // callbacks — the previous per-callback counter silently assumed the
         // pose topic publishes at exactly SubSteps (100 Hz); it actually runs
         // at ~200 Hz here, so T no longer mapped to any predictable real
-        // duration. This also removes the old in-callback ros::Rate::sleep(),
+        // duration. This also removes the old in-callback rclcpp::Rate::sleep(),
         // which blocked the subscriber callback itself and caused the queue
         // to back up/drop messages under rate mismatch.
         if (executing) {
-            double elapsed = (now() - step_start_time).seconds();
+            double elapsed = (nh->now() - step_start_time).seconds();
             double Rho      = elapsed / T;
             bool   finished  = Rho >= 1.0;
             Rho = std::min(std::max(Rho, 0.0), 1.0);
@@ -271,7 +269,7 @@ public:
 
             if (finished) {
                 executing = false;
-                RCLCPP_INFO(get_logger(), "[ultrasound_traj_node] Step completed. "
+                RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_node] Step completed. "
                          "Holding target pose. Waiting for next /ee_action ...");
             }
         } else {
@@ -281,15 +279,10 @@ public:
     }
 };
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
-    int result = 0;
-    try {
-        rclcpp::spin(std::make_shared<UltrasoundTrajNode>());
-    } catch (const std::exception & error) {
-        RCLCPP_ERROR(rclcpp::get_logger("ee_incremental_motion"), "%s", error.what());
-        result = 1;
-    }
-    if (rclcpp::ok()) {rclcpp::shutdown();}
-    return result;
+    UltrasoundTrajNode node;
+    rclcpp::spin(node.node());
+	rclcpp::shutdown();
+    return 0;
 }

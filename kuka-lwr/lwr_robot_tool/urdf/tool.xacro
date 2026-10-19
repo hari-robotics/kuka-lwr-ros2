@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Here we define the 2 parameters of the macro -->
+  <xacro:macro name="tool" params="prefix connected_to">
+    <!-- Create a fixed joint with a parameterized name. -->
+    <joint name="${prefix}tool_joint" type="fixed">
+      <!-- The parent link must be read from the robot model it is attached to. -->
+      <parent link="${connected_to}"/>
+      <child link="${prefix}tool"/>
+      <!-- The tool is directly attached to the flange. -->
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+    <link name="${prefix}tool">
+      <visual>
+        <geometry>
+		<cylinder radius="0.02" length="0.11"/>
+	</geometry>
+      </visual>
+      <collision>
+        <geometry>
+		<cylinder radius="0.02" length="0.11"/>
+	</geometry>
+      </collision>
+    </link>
+    <joint name="ee_tool_joint" type="fixed">
+      <!-- The parent link must be read from the robot model it is attached to. -->
+      <parent link="${prefix}tool"/>
+      <child link="tool_ee"/>
+      <!-- The tool is directly attached to the flange. -->
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+    <link name="tool_ee">
+      <visual>
+        <geometry>
+		<cylinder radius="0.01" length="0.2"/>
+	</geometry>
+      </visual>
+      <collision>
+        <geometry>
+		<cylinder radius="0.01" length="0.2"/>
+	</geometry>
+      </collision>
+    </link>
+    <!-- TCP frame -->
+    <joint name="${prefix}tcp_joint" type="fixed">
+      <origin xyz="0 0 0.116" rpy="0 0 0"/>
+      <parent link="tool_ee"/>
+      <child link="${prefix}tcp"/>
+    </joint>
+    <link name="${prefix}tcp"/>
+
+  </xacro:macro>
+</robot>

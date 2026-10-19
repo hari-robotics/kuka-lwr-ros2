@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>single_lwr_example</name>
+  <version>0.1.0</version>
+  <description>The single_lwr_example package</description>
+  <maintainer email="marco.esposito@tum.de">Marco Esposito</maintainer>
+  <maintainer email="cjrosales@gmail.com">Carlos J. Rosales</maintainer>
+  <license>BSD</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- main meta package dependency -->
+  <exec_depend>kuka_lwr</exec_depend>
+
+  <!-- local packages -->
+  <exec_depend>single_lwr_robot</exec_depend>
+  <exec_depend>single_lwr_moveit</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

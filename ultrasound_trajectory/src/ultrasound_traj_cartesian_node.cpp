@@ -1,6 +1,3 @@
-#include "ultrasound_trajectory/ros2_support.hpp"
-#include <functional>
-#include <rclcpp/create_timer.hpp>
 /*
  * ultrasound_traj_cartesian_node.cpp
  *
@@ -13,7 +10,7 @@
  * current EE pose to the requested target pose, then holds the target pose
  * and waits for the next target.
  *
- * The interpolation is paced by a dedicated fixed-rate rclcpp::TimerBase::SharedPtr (not by
+ * The interpolation is paced by a dedicated fixed-rate ros::Timer (not by
  * the arrival rate of /cartesian_position/pose/end_effector), and the
  * polynomial's time argument is recomputed each tick from actual elapsed
  * rclcpp::Time since the motion started -- so a late/skipped timer tick just
@@ -41,13 +38,13 @@
  * Topic out : /lwr/one_task_inverse_kinematics/command (lwr_controllers/PoseRPY)
  */
 
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/float64.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/float64.hpp"
 //  kuka-lwr Controllers Msgs
-#include <lwr_controllers/msg/arm_state.hpp>
-#include <lwr_controllers/msg/pose_rpy.hpp>
+#include "lwr_controllers/msg/arm_state.hpp"
+#include "lwr_controllers/msg/pose_rpy.hpp"
 //  Header Files
-#include "ultrasound_trajectory/smooth_traj.h"
+#include "../include/ultrasound_trajectory/smooth_traj.h"
 //  Eigen lib
 #include <Eigen/Core>
 #include <Eigen/Geometry>   // AngleAxisd, Quaterniond, rotation-matrix composition
@@ -59,11 +56,12 @@
 
 using namespace std;
 
-class UltrasoundTrajNode : public rclcpp::Node {
+class UltrasoundTrajNode {
 
-private: // private handle, for parameters only
-    rclcpp::Subscription<lwr_controllers::msg::PoseRPY>::SharedPtr sub_pose;    // current EE pose
-    rclcpp::Subscription<lwr_controllers::msg::PoseRPY>::SharedPtr sub_target;  // desired absolute target pose (base frame)
+private:
+    rclcpp::Node::SharedPtr nh = std::make_shared<rclcpp::Node>("ultrasound_traj_cartesian_node");
+    rclcpp::SubscriptionBase::SharedPtr sub_pose;    // current EE pose
+    rclcpp::SubscriptionBase::SharedPtr sub_target;  // desired absolute target pose (base frame)
 
     rclcpp::Publisher<lwr_controllers::msg::PoseRPY>::SharedPtr pub_command; // pose command to controller
     rclcpp::TimerBase::SharedPtr control_timer_; // fixed-rate interpolation/publish loop
@@ -102,48 +100,51 @@ private: // private handle, for parameters only
 
     // ── trajectory parameters ────────────────────────────────────────────────
     int    SubSteps = 100;  // interpolation steps per second (= control loop rate Hz)
-    double T_nom_{0};          // nominal/minimum motion duration [s] (rosparam ~T_nom)
-    double T_exec_{0};         // actual duration used for the motion in progress
+    double T_nom_;          // nominal/minimum motion duration [s] (rosparam ~T_nom)
+    double T_exec_;         // actual duration used for the motion in progress
                             // (>= T_nom_, stretched to respect velocity limits)
-    int total_steps_{0};    // T_exec_ * SubSteps, precomputed when a motion starts
+    int    total_steps_;    // T_exec_ * SubSteps, precomputed when a motion starts
 
     // ── safety limits (rosparams, see constructor for defaults) ──────────────
-    double max_linear_vel_{0};   // [m/s]   used to stretch T_exec_ if needed
-    double max_angular_vel_{0};  // [rad/s] used to stretch T_exec_ if needed
-    double max_linear_dist_{0};  // [m]     per-leg chunk-size limit -- displacement
+    double max_linear_vel_;   // [m/s]   used to stretch T_exec_ if needed
+    double max_angular_vel_;  // [rad/s] used to stretch T_exec_ if needed
+    double max_linear_dist_;  // [m]     per-leg chunk-size limit -- displacement
                               //         beyond this triggers automatic waypoint
                               //         splitting, not rejection
-    double max_angular_dist_{0}; // [rad]   per-leg chunk-size limit -- displacement
+    double max_angular_dist_; // [rad]   per-leg chunk-size limit -- displacement
                               //         beyond this triggers automatic waypoint
                               //         splitting, not rejection
-    double max_total_linear_dist_{0};  // [m]   absolute hard-reject ceiling on the
+    double max_total_linear_dist_;  // [m]   absolute hard-reject ceiling on the
                                      //       *total* requested displacement
-    double max_total_angular_dist_{0}; // [rad] absolute hard-reject ceiling on the
+    double max_total_angular_dist_; // [rad] absolute hard-reject ceiling on the
                                      //       *total* requested displacement
 
 public:
-    UltrasoundTrajNode() : rclcpp::Node("ultrasound_traj_cartesian_node") {
-        T_nom_ = ultrasound_trajectory::startup_parameter(*this, "T_nom", 5.0);
-        max_linear_vel_ = ultrasound_trajectory::startup_parameter(*this, "max_linear_vel", 0.05);   // 5 cm/s
-        max_angular_vel_ = ultrasound_trajectory::startup_parameter(*this, "max_angular_vel", 0.3);    // ~17 deg/s
-        max_linear_dist_ = ultrasound_trajectory::startup_parameter(*this, "max_linear_dist", 0.5);    // 50 cm  (per-leg chunk size)
-        max_angular_dist_ = ultrasound_trajectory::startup_parameter(*this, "max_angular_dist", 1.57);   // ~90 deg (per-leg chunk size)
-        max_total_linear_dist_ = ultrasound_trajectory::startup_parameter(*this, "max_total_linear_dist", 2.0); // 2 m -- absolute reject ceiling
-        max_total_angular_dist_ = ultrasound_trajectory::startup_parameter(*this, "max_total_angular_dist", 3.0); // ~172 deg -- absolute reject ceiling
 
-        sub_pose = create_subscription<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/end_effector", rclcpp::SensorDataQoS(), std::bind(&UltrasoundTrajNode::callback_pose, this, std::placeholders::_1));
-        sub_target = create_subscription<lwr_controllers::msg::PoseRPY>("/ee_cartesian_target", rclcpp::SensorDataQoS(), std::bind(&UltrasoundTrajNode::callback_target, this, std::placeholders::_1));
+    rclcpp::Node::SharedPtr node() { return nh; }  // ROS 2: node to spin in main()
+    UltrasoundTrajNode() {
+        T_nom_ = nh->declare_parameter("T_nom", 5.0);
+        max_linear_vel_ = nh->declare_parameter("max_linear_vel", 0.05);   // 5 cm/s
+        max_angular_vel_ = nh->declare_parameter("max_angular_vel", 0.3);    // ~17 deg/s
+        max_linear_dist_ = nh->declare_parameter("max_linear_dist", 0.5);    // 50 cm  (per-leg chunk size)
+        max_angular_dist_ = nh->declare_parameter("max_angular_dist", 1.57);   // ~90 deg (per-leg chunk size)
+        max_total_linear_dist_ = nh->declare_parameter("max_total_linear_dist", 2.0); // 2 m -- absolute reject ceiling
+        max_total_angular_dist_ = nh->declare_parameter("max_total_angular_dist", 3.0); // ~172 deg -- absolute reject ceiling
 
-        pub_command = create_publisher<lwr_controllers::msg::PoseRPY>("/lwr/one_task_inverse_kinematics/command", 10);
+        sub_pose = nh->create_subscription<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/end_effector", 10, std::bind(&UltrasoundTrajNode::callback_pose, this, std::placeholders::_1));
+        sub_target = nh->create_subscription<lwr_controllers::msg::PoseRPY>("/ee_cartesian_target", 1, std::bind(&UltrasoundTrajNode::callback_target, this, std::placeholders::_1));
 
-        control_timer_ = rclcpp::create_timer(this, get_clock(), rclcpp::Duration::from_seconds(1.0 / SubSteps), std::bind(&UltrasoundTrajNode::controlLoop, this));
+        pub_command = nh->create_publisher<lwr_controllers::msg::PoseRPY>("/lwr/one_task_inverse_kinematics/command", 10);
 
-        RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Ready. Waiting for first pose...");
+        // ROS 1 ros::Timer runs on ROS time: timer on the node clock
+        control_timer_ = rclcpp::create_timer(nh, nh->get_clock(), rclcpp::Duration::from_seconds(1.0 / SubSteps),
+                                        std::bind(&UltrasoundTrajNode::controlLoop, this));
+
+        RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Ready. Waiting for first pose...");
     }
 
     // ── pose callback: just track current EE state ───────────────────────────
-    void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr& pose_msg) {
-        if (!ultrasound_trajectory::finite_pose(*pose_msg)) {return;}
+    void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr  pose_msg) {
 
         ee_x     = pose_msg->position.x;
         ee_y     = pose_msg->position.y;
@@ -162,7 +163,7 @@ public:
             command_msg.orientation.pitch = ee_pitch;
             command_msg.orientation.yaw   = ee_yaw;
             pose_initialized = true;
-            RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Pose initialised. "
+            RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Pose initialised. "
                      "Waiting for /ee_cartesian_target ...");
         }
     }
@@ -219,30 +220,29 @@ public:
         quatToRPY(q_target_, rt, pt, yt_);
 
         if (leg_count_ > 1) {
-            RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Leg %d/%d latched "
+            RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Leg %d/%d latched "
                      "(dist=%.4f m, angle=%.4f rad, T_exec=%.2f s):",
                      leg_index_, leg_count_, leg_linear_dist, leg_angular_dist, T_exec_);
         } else {
-            RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] New target received "
+            RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] New target received "
                      "(dist=%.4f m, angle=%.4f rad, T_exec=%.2f s):",
                      leg_linear_dist, leg_angular_dist, T_exec_);
         }
-        RCLCPP_INFO(get_logger(), "  start  : x=%.4f  y=%.4f  z=%.4f  roll=%.4f  pitch=%.4f  yaw=%.4f",
+        RCLCPP_INFO(nh->get_logger(), "  start  : x=%.4f  y=%.4f  z=%.4f  roll=%.4f  pitch=%.4f  yaw=%.4f",
                  xs, ys, zs, rs, ps, ys_);
-        RCLCPP_INFO(get_logger(), "  target : x=%.4f  y=%.4f  z=%.4f  roll=%.4f  pitch=%.4f  yaw=%.4f",
+        RCLCPP_INFO(nh->get_logger(), "  target : x=%.4f  y=%.4f  z=%.4f  roll=%.4f  pitch=%.4f  yaw=%.4f",
                  xt, yt, zt, rt, pt, yt_);
     }
 
     // ── target-pose callback ──────────────────────────────────────────────────
-    void callback_target(const lwr_controllers::msg::PoseRPY::ConstSharedPtr& msg) {
-        if (!ultrasound_trajectory::finite_pose(*msg)) {return;}
+    void callback_target(const lwr_controllers::msg::PoseRPY::ConstSharedPtr  msg) {
         if (!pose_initialized) {
-            RCLCPP_WARN(get_logger(), "[ultrasound_traj_cartesian_node] Target received before pose "
+            RCLCPP_WARN(nh->get_logger(), "[ultrasound_traj_cartesian_node] Target received before pose "
                      "is initialised — ignoring.");
             return;
         }
         if (executing) {
-            RCLCPP_WARN(get_logger(), "[ultrasound_traj_cartesian_node] Still executing previous "
+            RCLCPP_WARN(nh->get_logger(), "[ultrasound_traj_cartesian_node] Still executing previous "
                      "motion — ignoring new target.");
             return;
         }
@@ -264,7 +264,7 @@ public:
         // ── reject targets whose TOTAL displacement exceeds the absolute
         //    safety ceiling, regardless of whether it could be chained ────────
         if (linear_dist > max_total_linear_dist_ || angular_dist > max_total_angular_dist_) {
-            RCLCPP_ERROR(get_logger(), "[ultrasound_traj_cartesian_node] Rejecting target: requested "
+            RCLCPP_ERROR(nh->get_logger(), "[ultrasound_traj_cartesian_node] Rejecting target: requested "
                       "displacement %.4f m / %.4f rad exceeds absolute safety ceiling "
                       "(max_total_linear_dist=%.4f m, max_total_angular_dist=%.4f rad). "
                       "Target ignored.",
@@ -312,7 +312,7 @@ public:
         }
 
         if (N > 1) {
-            RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Requested displacement %.4f m / "
+            RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Requested displacement %.4f m / "
                      "%.4f rad exceeds per-leg limit (max_linear_dist=%.4f m, "
                      "max_angular_dist=%.4f rad); splitting into %d legs.",
                      linear_dist, angular_dist, max_linear_dist_, max_angular_dist_, N);
@@ -332,18 +332,18 @@ public:
         if (target_pending) {
             target_pending     = false;
             executing          = true;
-            motion_start_time_ = now();
+            motion_start_time_ = nh->now();
             total_steps_       = static_cast<int>(std::round(T_exec_ * SubSteps));
             if (leg_count_ > 1) {
-                RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Executing leg %d/%d (T=%.2f s) ...",
+                RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Executing leg %d/%d (T=%.2f s) ...",
                          leg_index_, leg_count_, T_exec_);
             } else {
-                RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Executing motion (T=%.2f s) ...", T_exec_);
+                RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Executing motion (T=%.2f s) ...", T_exec_);
             }
         }
 
         if (executing) {
-            double elapsed = (now() - motion_start_time_).seconds();
+            double elapsed = (nh->now() - motion_start_time_).seconds();
             // Recomputed from elapsed time every tick, so a late/skipped tick
             // catches up to the right point on the curve instead of drifting.
             int step_i = static_cast<int>(std::round(elapsed * SubSteps));
@@ -378,11 +378,11 @@ public:
                 } else {
                     executing = false;
                     if (leg_count_ > 1) {
-                        RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Chain completed (leg %d/%d). "
+                        RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Chain completed (leg %d/%d). "
                                  "Holding target pose. Waiting for next /ee_cartesian_target ...",
                                  leg_index_, leg_count_);
                     } else {
-                        RCLCPP_INFO(get_logger(), "[ultrasound_traj_cartesian_node] Motion completed. "
+                        RCLCPP_INFO(nh->get_logger(), "[ultrasound_traj_cartesian_node] Motion completed. "
                                  "Holding target pose. Waiting for next /ee_cartesian_target ...");
                     }
                 }
@@ -394,15 +394,10 @@ public:
     }
 };
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
-    int result = 0;
-    try {
-        rclcpp::spin(std::make_shared<UltrasoundTrajNode>());
-    } catch (const std::exception & error) {
-        RCLCPP_ERROR(rclcpp::get_logger("ultrasound_traj_cartesian_node"), "%s", error.what());
-        result = 1;
-    }
-    if (rclcpp::ok()) {rclcpp::shutdown();}
-    return result;
+    UltrasoundTrajNode node;
+    rclcpp::spin(node.node());
+	rclcpp::shutdown();
+    return 0;
 }

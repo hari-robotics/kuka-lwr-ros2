@@ -21,7 +21,7 @@ double SmoothTraj(double Xi, double Xf, double T, int SubSteps, int i){
 	Sigma = A[0] + A[1]*Rho + A[2]*pow(Rho, 2) + A[3]*pow(Rho, 3) + A[4]*pow(Rho, 4) + A[5]*pow(Rho, 5);
 	Xt = Xi + H*Sigma;
 
-//	RCLCPP_INFO(get_logger(), "t: %f", t);
+//	ROS_INFO("t: %f", t);
 	
 	return Xt;
 }

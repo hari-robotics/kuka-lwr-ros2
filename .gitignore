@@ -1,10 +1,4 @@
-# Test sources and results
-test/
-tests/
-test_*.py
-test_*.cpp
-*_test.py
-*_test.cpp
+# Test results (test sources belong in version control)
 test_results/
 Testing/
 .pytest_cache/
@@ -41,3 +35,10 @@ ament_cmake_*/
 # Python bytecode
 __pycache__/
 *.py[cod]
+
+# Editors / language servers
+.vscode/
+.idea/
+.cache/
+*.swp
+*~

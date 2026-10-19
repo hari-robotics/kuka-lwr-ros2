@@ -2,7 +2,7 @@
 
 Moves the KUKA LWR 4+ end-effector by translation/rotation deltas expressed in
 the end-effector's **own** coordinate frame, on top of the existing
-`lwr_controllers/msg/OneTaskInverseKinematics` absolute-pose controller. Follows
+`lwr_controllers/OneTaskInverseKinematics` absolute-pose controller. Follows
 `KUKA_LWR4_Tool_Relative_Motion_Development_Guide.md`. No existing file in
 this package was modified beyond additive `CMakeLists.txt`/`package.xml`
 dependency lines.
@@ -36,7 +36,7 @@ dependency lines.
    weighted-least-squares joint-space safety gate (singularity damping,
    joint-limit margins, predicted `qdot`/`qddot`, branch-jump continuity); on
    rejection, shrinks the step or lengthens the trajectory rather than
-   clipping a joint; publishes the accepted waypoint as `lwr_controllers/msg/PoseRPY`
+   clipping a joint; publishes the accepted waypoint as `lwr_controllers/PoseRPY`
    with `id=0` to the legacy controller.
 4. **SETTLING** — holds, watching measured pose error and joint speed until
    they stay within `settle_*` thresholds for `settle_hold_duration`, then
@@ -55,13 +55,13 @@ publishes to the legacy command topic until explicitly set `false`.
 
 | Topic | Type | Direction |
 |---|---|---|
-| `~move` | `geometry_msgs/msg/Twist` (linear=dx,dy,dz [m], angular=droll,dpitch,dyaw [rad], tool-frame) | in |
-| `~cancel` | `std_msgs/msg/Empty` | in |
-| `~fault_reset` | `std_msgs/msg/Empty` | in |
-| `~status` | `std_msgs/msg/String` (one diagnostics line, `diagnostics_rate` Hz) | out |
-| `/lwr/joint_states` (param `joint_state_topic`) | `sensor_msgs/JointState` | in, safety-critical |
-| `/cartesian_position/pose/end_effector` (param `cross_check_pose_topic`) | `lwr_controllers/msg/PoseRPY` | in, diagnostic only |
-| `/lwr/one_task_inverse_kinematics/command` (param `legacy_command_topic`) | `lwr_controllers/msg/PoseRPY`, `id=0` always | out |
+| `~move` | `geometry_msgs/Twist` (linear=dx,dy,dz [m], angular=droll,dpitch,dyaw [rad], tool-frame) | in |
+| `~cancel` | `std_msgs/Empty` | in |
+| `~fault_reset` | `std_msgs/Empty` | in |
+| `~status` | `std_msgs/String` (one diagnostics line, `diagnostics_rate` Hz) | out |
+| `/joint_states` (param `joint_state_topic`) | `sensor_msgs/JointState` | in, safety-critical |
+| `/cartesian_position/pose/end_effector` (param `cross_check_pose_topic`) | `lwr_controllers/PoseRPY` | in, diagnostic only |
+| `/lwr/one_task_inverse_kinematics/command` (param `legacy_command_topic`) | `lwr_controllers/PoseRPY`, `id=0` always | out |
 
 Key parameters (all under the node's private namespace, see
 `ik_safety_gate.h`/`trm_types.h` for the full list and defaults):
@@ -75,46 +75,41 @@ Key parameters (all under the node's private namespace, see
 > `ee_incremental_motion` or `ultrasound_traj_node` — all three publish to the
 > same legacy command topic.
 
-## ROS 2 commands
-
-Configuration parameters are declared on this node and are read-only after startup.
-Private topics/services use `~/name`; parameter names have no `~` prefix.
-Set `use_sim_time:=true` through `--ros-args -p use_sim_time:=true` when using Gazebo.
-
+## Commands
 
 ### 1. Build
 
 ```bash
-cd /home/hari/kuka_ros2_ws
-source /opt/ros/humble/setup.bash
-colcon build --packages-select ultrasound_trajectory --symlink-install
-source install/setup.bash
+cd ~/Documents/project/ROS/kuka_ws
+source /opt/ros/kinetic/setup.bash
+catkin_make --pkg ultrasound_trajectory
+source devel/setup.bash
 ```
 
 ### 2. Bring up the robot (sim or hardware, as you already do)
 
 ```bash
-ros2 launch single_lwr_launch single_lwr_tool.launch.py
+roslaunch kuka_launch single_lwr.launch
 ```
 
 Confirm the prerequisites are actually up before starting the new node:
 
 ```bash
-ros2 topic hz /lwr/joint_states
-ros2 topic info /robot_description
-ros2 topic info /lwr/one_task_inverse_kinematics/command
+rostopic hz /joint_states
+rosparam get /robot_description | head -c 200
+rostopic info /lwr/one_task_inverse_kinematics/command
 ```
 
 ### 3. Start the node in `monitor_only` mode (safe default)
 
 ```bash
-ros2 run ultrasound_trajectory tool_relative_motion_node --ros-args -p monitor_only:=true
+rosrun ultrasound_trajectory tool_relative_motion_node _monitor_only:=true
 ```
 
 In another terminal, watch its diagnostics:
 
 ```bash
-ros2 topic echo /tool_relative_motion_node/status
+rostopic echo /tool_relative_motion_node/status
 ```
 
 You should see `state=IDLE` at startup.
@@ -122,7 +117,7 @@ You should see `state=IDLE` at startup.
 ### 4. Send a small tool-frame move
 
 ```bash
-ros2 topic pub --once /tool_relative_motion_node/move geometry_msgs/msg/Twist \
+rostopic pub -1 /tool_relative_motion_node/move geometry_msgs/Twist \
   "linear:  {x: 0.0, y: 0.0, z: 0.01}
    angular: {x: 0.0, y: 0.0, z: 0.0}"
 ```
@@ -132,17 +127,17 @@ sane `max_dq`/`sigma_min` values, and confirm (since `monitor_only:=true`)
 **nothing** is published on the legacy command topic:
 
 ```bash
-ros2 topic echo /lwr/one_task_inverse_kinematics/command
+rostopic echo /lwr/one_task_inverse_kinematics/command
 ```
 
 Other useful commands while testing:
 
 ```bash
 # cancel an in-progress move -> HOLD
-ros2 topic pub --once /tool_relative_motion_node/cancel std_msgs/msg/Empty "{}"
+rostopic pub -1 /tool_relative_motion_node/cancel std_msgs/Empty "{}"
 
 # clear a HOLD or FAULT -> IDLE
-ros2 topic pub --once /tool_relative_motion_node/fault_reset std_msgs/msg/Empty "{}"
+rostopic pub -1 /tool_relative_motion_node/fault_reset std_msgs/Empty "{}"
 ```
 
 ### 5. Only after the above looks correct: enable real commands
@@ -151,7 +146,7 @@ Start at sub-millimetre/sub-degree requests and low speed, per the guide's
 commissioning procedure (Section 10.2):
 
 ```bash
-ros2 run ultrasound_trajectory tool_relative_motion_node --ros-args -p monitor_only:=false
+rosrun ultrasound_trajectory tool_relative_motion_node _monitor_only:=false
 ```
 
 Then repeat step 4 with a very small delta first (e.g. `z: 0.001`), watching

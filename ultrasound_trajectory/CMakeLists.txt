@@ -1,40 +1,45 @@
 cmake_minimum_required(VERSION 3.8)
 project(ultrasound_trajectory)
+
+# ROS 1: add_definitions (-fpermissive -std=c++11)
+add_compile_options(-fpermissive)
+set(CMAKE_CXX_STANDARD 17)
+
 find_package(ament_cmake REQUIRED)
-find_package(Eigen3 REQUIRED)
-set(node_dependencies rclcpp rclcpp_action control_msgs rcl_interfaces std_msgs std_srvs geometry_msgs sensor_msgs trajectory_msgs
-    lwr_controllers kdl_parser orocos_kdl_vendor urdf)
-foreach(dependency IN LISTS node_dependencies)
+set(dependencies rclcpp std_msgs geometry_msgs sensor_msgs trajectory_msgs control_msgs std_srvs lwr_controllers
+  message_filters kdl_parser orocos_kdl_vendor urdf)
+foreach(dependency IN LISTS dependencies)
   find_package(${dependency} REQUIRED)
 endforeach()
-find_package(orocos_kdl REQUIRED)
-set(trajectory_nodes ultrasound_traj_node linear_traj_node linear_traj_node_Luca
-    pose_initialization ultrasound_traj_cartesian_node pose_init ee_incremental_motion
-    ee_incremental_impedance_node tool_relative_motion_node)
-foreach(node IN LISTS trajectory_nodes)
-  add_executable(${node} src/${node}.cpp)
-  target_compile_features(${node} PUBLIC cxx_std_17)
-  target_include_directories(${node} PRIVATE include)
-  target_compile_options(${node} PRIVATE -Wall -Wextra -Wpedantic)
-  ament_target_dependencies(${node} ${node_dependencies})
-  target_link_libraries(${node} Eigen3::Eigen ${orocos_kdl_LIBRARIES})
+find_package(Eigen3 REQUIRED)
+# ROS 1: find_package (OpenCV 3.3.1 REQUIRED); Humble ships OpenCV 4 (no OpenCV call in the sources)
+find_package(OpenCV REQUIRED)
+
+include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(include)
+
+add_executable(ultrasound_traj_node src/ultrasound_traj_node.cpp)
+add_executable(linear_traj_node src/linear_traj_node.cpp)
+add_executable(linear_traj_node_Luca src/linear_traj_node_Luca.cpp)
+add_executable(pose_initialization src/pose_initialization.cpp)
+add_executable(ultrasound_traj_cartesian_node src/ultrasound_traj_cartesian_node.cpp)
+add_executable(pose_init src/pose_init.cpp)
+add_executable(ee_incremental_motion src/ee_incremental_motion.cpp)
+add_executable(ee_incremental_impedance_node src/ee_incremental_impedance_node.cpp)
+add_executable(tool_relative_motion_node
+  src/tool_relative_motion_node.cpp
+  src/se3_trajectory.cpp
+  src/ik_safety_gate.cpp
+  src/motion_state_machine.cpp
+)
+
+set(executables ultrasound_traj_node linear_traj_node linear_traj_node_Luca pose_initialization
+  ultrasound_traj_cartesian_node pose_init ee_incremental_motion ee_incremental_impedance_node
+  tool_relative_motion_node)
+foreach(executable IN LISTS executables)
+  ament_target_dependencies(${executable} ${dependencies})
+  target_link_libraries(${executable} Eigen3::Eigen)
 endforeach()
-target_sources(tool_relative_motion_node PRIVATE src/se3_trajectory.cpp
-    src/ik_safety_gate.cpp src/motion_state_machine.cpp)
-install(TARGETS ${trajectory_nodes} DESTINATION lib/${PROJECT_NAME})
-install(DIRECTORY include/ DESTINATION include)
-install(DIRECTORY doc launch DESTINATION share/${PROJECT_NAME})
-install(FILES README.md DESTINATION share/${PROJECT_NAME})
-ament_export_include_directories(include)
-ament_export_dependencies(${node_dependencies} Eigen3)
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_cmake_pytest REQUIRED)
-  ament_add_gtest(test_trajectory_math test/test_math.cpp src/se3_trajectory.cpp)
-  target_include_directories(test_trajectory_math PRIVATE include)
-  target_link_libraries(test_trajectory_math Eigen3::Eigen ${orocos_kdl_LIBRARIES})
-  ament_target_dependencies(test_trajectory_math orocos_kdl_vendor)
-  ament_add_pytest_test(test_ros2_nodes test/test_nodes.py TIMEOUT 150
-    APPEND_ENV ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_test_logs)
-endif()
+
+install(TARGETS ${executables} DESTINATION lib/${PROJECT_NAME})
 ament_package()

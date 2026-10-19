@@ -3,7 +3,7 @@
 Moves the KUKA LWR end-effector by translation/rotation deltas expressed in
 the end-effector's **own** coordinate frame, same input convention as
 `ee_incremental_motion.cpp`, but publishes to the **Cartesian impedance
-controller** (`lwr_controllers/msg/CartesianImpedancePoint` on
+controller** (`lwr_controllers/CartesianImpedancePoint` on
 `/lwr/cartesian_impedance_controller/command`) instead of the legacy
 position-only `one_task_inverse_kinematics` controller. No existing file in
 this package was modified beyond two additive `CMakeLists.txt` lines
@@ -18,12 +18,12 @@ Source: `src/ee_incremental_impedance_node.cpp`. Design plan:
    `/cartesian_position/pose/end_effector`) — updates the current EE pose. On
    the *first* callback it latches the current pose as the held target and
    fills stiffness/damping/force once (mirrors `linear_traj_node.cpp`'s
-   `flag_init` pattern); `header.frame_id` is set non-empty so `x_fri` is
+   `flag_init` pattern); `header.frame_id` is set non-empty so `x_FRI` is
    treated as an **absolute base-frame pose** by the controller, not a
    per-cycle tool-frame increment.
 2. **Action callback** (`~action_topic`, default `/ee_action_impedance`) — a
-   `geometry_msgs/msg/Twist` delta in the EE frame (`linear` = dx,dy,dz [m],
-   `angular` = droll,dpitch,dyaw [rad]). Rejected with a `RCLCPP_WARN` if the
+   `geometry_msgs/Twist` delta in the EE frame (`linear` = dx,dy,dz [m],
+   `angular` = droll,dpitch,dyaw [rad]). Rejected with a `ROS_WARN` if the
    pose isn't initialized yet, or if a step is already executing (one action
    in flight at a time — new ones are dropped, not queued). Otherwise:
    clamps the delta to `~max_linear_step` / `~max_angular_step`, rotates the
@@ -35,7 +35,7 @@ Source: `src/ee_incremental_impedance_node.cpp`. Design plan:
    callback counter, so it's correct regardless of the pose topic's actual
    publish rate), over `~step_duration` seconds. Position is linearly
    interpolated component-wise; orientation is SLERPed between start/target
-   quaternions and written straight into `x_fri.orientation` (no RPY
+   quaternions and written straight into `x_FRI.orientation` (no RPY
    round-trip needed — `CartesianImpedancePoint`'s pose field is already a
    quaternion). On completion it holds the target and waits for the next
    action.
@@ -45,7 +45,7 @@ Source: `src/ee_incremental_impedance_node.cpp`. Design plan:
    along the EE's *current* local z-axis so measured contact force converges
    to a fixed setpoint (`~target_force_z`), regardless of unknown
    tissue/surface stiffness. It reads `~force_topic`
-   (`geometry_msgs/msg/Wrench.force.z`, same convention as `linear_traj_node.cpp`'s
+   (`geometry_msgs/Wrench.force.z`, same convention as `linear_traj_node.cpp`'s
    `/Force_calibrated`) and adds `dz_local · R_current.col(2)` (the trim,
    expressed in base frame) on top of whatever x/y/z the step above is
    commanding. **Starts disabled** — see the safety section below.
@@ -54,11 +54,11 @@ Source: `src/ee_incremental_impedance_node.cpp`. Design plan:
 
 | Topic (param) | Type | Direction |
 |---|---|---|
-| `~action_topic` (default `/ee_action_impedance`) | `geometry_msgs/msg/Twist` (linear=dx,dy,dz [m], angular=droll,dpitch,dyaw [rad], **EE frame**) | in |
-| `~pose_topic` (default `/cartesian_position/pose/end_effector`) | `lwr_controllers/msg/PoseRPY` | in |
-| `~force_topic` (default `/Force_calibrated`) | `geometry_msgs/msg/Wrench` (`force.z` used, EE/tip frame) | in |
-| `~enable_force_control` | `std_srvs/srv/SetBool` | service |
-| `~command_topic` (default `/lwr/cartesian_impedance_controller/command`) | `lwr_controllers/msg/CartesianImpedancePoint`, absolute base-frame pose | out |
+| `~action_topic` (default `/ee_action_impedance`) | `geometry_msgs/Twist` (linear=dx,dy,dz [m], angular=droll,dpitch,dyaw [rad], **EE frame**) | in |
+| `~pose_topic` (default `/cartesian_position/pose/end_effector`) | `lwr_controllers/PoseRPY` | in |
+| `~force_topic` (default `/Force_calibrated`) | `geometry_msgs/Wrench` (`force.z` used, EE/tip frame) | in |
+| `~enable_force_control` | `std_srvs/SetBool` | service |
+| `~command_topic` (default `/lwr/cartesian_impedance_controller/command`) | `lwr_controllers/CartesianImpedancePoint`, absolute base-frame pose | out |
 
 Other params (all under the node's private namespace, all optional):
 `~step_duration` (default `6.0` s), `~stiffness_linear` (default `1500`),
@@ -74,7 +74,7 @@ sensor/mechanism before trusting them):
 (default `0.003` m/s), `~max_force_travel` (default `0.02` m, hard cap on
 cumulative trim from where it was enabled), `~max_allowed_force_z` (default
 `8.0` N, hard cutoff — auto-disables past this), `~force_feedback_timeout`
-(default `0.5` s), `~stiffness_z_active` (default `300`, `k_fri.z` used while
+(default `0.5` s), `~stiffness_z_active` (default `300`, `k_FRI.z` used while
 force control is enabled — softer than `~stiffness_linear` so the real
 controller doesn't fight the ROS-rate position trim).
 
@@ -95,33 +95,28 @@ controller doesn't fight the ROS-rate position trim).
 > tuning with the arm free (not in contact) at a very low
 > `~max_force_step_rate` to confirm `~force_sign` before ever touching tissue.
 
-## ROS 2 commands
-
-Configuration parameters are declared on this node and are read-only after startup.
-Private topics/services use `~/name`; parameter names have no `~` prefix.
-Set `use_sim_time:=true` through `--ros-args -p use_sim_time:=true` when using Gazebo.
-
+## Commands
 
 ### 1. Build
 
 ```bash
-cd /home/hari/kuka_ros2_ws
-source /opt/ros/humble/setup.bash
-colcon build --packages-select ultrasound_trajectory --symlink-install
-source install/setup.bash
+cd ~/Documents/project/ROS/kuka_ws
+source /opt/ros/kinetic/setup.bash
+catkin_make --pkg ultrasound_trajectory
+source devel/setup.bash
 ```
 
 ### 2. Bring up the robot (sim or hardware, as you already do)
 
 ```bash
-ros2 launch single_lwr_launch single_lwr_tool.launch.py
+roslaunch kuka_launch single_lwr.launch
 ```
 
 Confirm the prerequisites are up before starting the new node:
 
 ```bash
-ros2 topic hz /cartesian_position/pose/end_effector
-ros2 topic info /lwr/cartesian_impedance_controller/command
+rostopic hz /cartesian_position/pose/end_effector
+rostopic info /lwr/cartesian_impedance_controller/command
 ```
 
 ### 3. Dry-run without the robot (validate the math only)
@@ -129,7 +124,7 @@ ros2 topic info /lwr/cartesian_impedance_controller/command
 In one terminal, stub the current pose so the node can initialize:
 
 ```bash
-ros2 topic pub --rate 50 /cartesian_position/pose/end_effector lwr_controllers/msg/PoseRPY \
+rostopic pub -r 50 /cartesian_position/pose/end_effector lwr_controllers/PoseRPY \
   "id: 0
    position: {x: 0.5, y: 0.0, z: 0.3}
    orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}"
@@ -138,38 +133,38 @@ ros2 topic pub --rate 50 /cartesian_position/pose/end_effector lwr_controllers/m
 In a second terminal, start the node and watch its output:
 
 ```bash
-ros2 run ultrasound_trajectory ee_incremental_impedance_node
+rosrun ultrasound_trajectory ee_incremental_impedance_node
 ```
 
 ```bash
-ros2 topic echo /lwr/cartesian_impedance_controller/command
+rostopic echo /lwr/cartesian_impedance_controller/command
 ```
 
 In a third terminal, send a small EE-frame move:
 
 ```bash
-ros2 topic pub --once /ee_action_impedance geometry_msgs/msg/Twist \
+rostopic pub -1 /ee_action_impedance geometry_msgs/Twist \
   "linear:  {x: 0.02, y: 0.0, z: 0.0}
    angular: {x: 0.0, y: 0.0, z: 0.0}"
 ```
 
-Confirm `x_fri.position`/`orientation` interpolates smoothly from the start
+Confirm `x_FRI.position`/`orientation` interpolates smoothly from the start
 pose to the expected target over `~step_duration` seconds (default 6 s),
-then holds. Sending a second action mid-step should log `RCLCPP_WARN` ("still
+then holds. Sending a second action mid-step should log `ROS_WARN` ("still
 executing") and leave the in-flight target unchanged.
 
 ### 4. Dry-run the force loop (still no robot, stub the force sensor too)
 
 In a fourth terminal, stub force feedback and set a fixed target force via
-ROS 2 startup parameters (restart the node to change them):
+rosparam before launching (or restart the node after setting it):
 
 ```bash
-ros2 run ultrasound_trajectory ee_incremental_impedance_node \
-  --ros-args -p target_force_z:=2.0 -p max_force_step_rate:=0.001
+rosrun ultrasound_trajectory ee_incremental_impedance_node \
+  _target_force_z:=2.0 _max_force_step_rate:=0.001
 ```
 
 ```bash
-ros2 topic pub --rate 20 /Force_calibrated geometry_msgs/msg/Wrench \
+rostopic pub -r 20 /Force_calibrated geometry_msgs/Wrench \
   "force:  {x: 0.0, y: 0.0, z: 0.0}
    torque: {x: 0.0, y: 0.0, z: 0.0}"
 ```
@@ -178,16 +173,16 @@ With the pose stub from step 3 still running, try enabling before any force
 message has arrived — should be refused:
 
 ```bash
-ros2 service call /ee_incremental_impedance_node/enable_force_control std_srvs/srv/SetBool "data: true"
+rosservice call /ee_incremental_impedance_node/enable_force_control "data: true"
 ```
 
 Now with `/Force_calibrated` actually publishing, enable it and watch the
-trim slowly move `x_fri.position` (verify direction matches your sign
+trim slowly move `x_FRI.position` (verify direction matches your sign
 convention — flip `~force_sign` if it moves the wrong way):
 
 ```bash
-ros2 service call /ee_incremental_impedance_node/enable_force_control std_srvs/srv/SetBool "data: true"
-ros2 topic echo /lwr/cartesian_impedance_controller/command
+rosservice call /ee_incremental_impedance_node/enable_force_control "data: true"
+rostopic echo /lwr/cartesian_impedance_controller/command
 ```
 
 Test the safety trips: publish a `force.z` beyond `~max_allowed_force_z`, or
@@ -196,7 +191,7 @@ and confirm the node logs `ROS_ERROR` and auto-disables. Disable manually
 at any time:
 
 ```bash
-ros2 service call /ee_incremental_impedance_node/enable_force_control std_srvs/srv/SetBool "data: false"
+rosservice call /ee_incremental_impedance_node/enable_force_control "data: false"
 ```
 
 ### 5. Run against the real robot
@@ -206,7 +201,7 @@ switch / e-stop (same operating procedure as the other nodes in this
 package):
 
 ```bash
-ros2 run ultrasound_trajectory ee_incremental_impedance_node
+rosrun ultrasound_trajectory ee_incremental_impedance_node
 ```
 
 Start with a very small delta first (e.g. `z: 0.005`) before increasing

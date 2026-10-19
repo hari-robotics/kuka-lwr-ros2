@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.8)
+project(single_lwr_robot)
+find_package(ament_cmake REQUIRED)
+install(DIRECTORY robot DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY worlds DESTINATION share/${PROJECT_NAME})
+ament_package()

@@ -1,6 +1,3 @@
-#include "ultrasound_trajectory/ros2_support.hpp"
-#include <functional>
-#include <rclcpp/create_timer.hpp>
 /*
 * This file is used for sending a diplacement along z-axis for Luca's experiment
 * 2023-09-10
@@ -10,19 +7,19 @@
 	* fill in the command just when they are updated
 	* z displacement max 10 cm
 */
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/string.hpp>
-#include <std_msgs/msg/float32_multi_array.hpp>
-#include <std_msgs/msg/float64.hpp>
-#include <std_msgs/msg/bool.hpp>
-#include <geometry_msgs/msg/twist.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/float32_multi_array.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 //	kuka-lwr Controllers Msgs
-#include <lwr_controllers/msg/arm_state.hpp>
-#include <lwr_controllers/msg/pose_rpy.hpp>
-#include <lwr_controllers/msg/cartesian_impedance_point.hpp>
+#include "lwr_controllers/msg/arm_state.hpp"
+#include "lwr_controllers/msg/pose_rpy.hpp"
+#include "lwr_controllers/msg/cartesian_impedance_point.hpp"
 //	Header Files
-#include "ultrasound_trajectory/smooth_traj.h"
-#include "ultrasound_trajectory/pseudo_inverse.h"
+#include "../include/ultrasound_trajectory/smooth_traj.h"
+#include "../include/ultrasound_trajectory/pseudo_inverse.h"
 //	Eigen lib
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -35,35 +32,31 @@
 
 using namespace std;
 
-class UltrasoundTrajNode : public rclcpp::Node {
+class UltrasoundTrajNode{
 
 private:
-	rclcpp::Subscription<lwr_controllers::msg::PoseRPY>::SharedPtr sub_pose;
-    lwr_controllers::msg::PoseRPY::ConstSharedPtr latest_pose_;
-    rclcpp::Time last_pose_time_{0, 0, RCL_ROS_TIME};
-    rclcpp::TimerBase::SharedPtr trajectory_timer_;
-    double feedback_timeout_{0.5};
- 		// Position, Orientation Subscriber
-	rclcpp::Subscription<lwr_controllers::msg::ArmState>::SharedPtr sub_ft; 		// Force, Torque Subscriber
-	rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_stiffness;
-	rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_force_calib;
+	rclcpp::Node::SharedPtr nh = std::make_shared<rclcpp::Node>("ultrasound_traj_node");
+	rclcpp::SubscriptionBase::SharedPtr sub_pose; 		// Position, Orientation Subscriber
+	rclcpp::SubscriptionBase::SharedPtr sub_ft; 		// Force, Torque Subscriber
+	rclcpp::SubscriptionBase::SharedPtr sub_stiffness;
+	rclcpp::SubscriptionBase::SharedPtr sub_force_calib;
 	
 	rclcpp::Publisher<lwr_controllers::msg::CartesianImpedancePoint>::SharedPtr pub_command; 	// Impedance Controller Command
 	rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_PID;
 									// Force Controller Command
-	
+	rclcpp::PublisherBase::SharedPtr pub_force;  // ROS 1: never advertised
 	
 	lwr_controllers::msg::CartesianImpedancePoint command_msg;
 	std_msgs::msg::Bool PID_msg;
 
-	//std_msgs::msg::double command_force_msg{0}; *************************
+	//std_msgs::double command_force_msg; *************************
 	
 	string frame_id = "0";
-	double ee_f_x{0}; double ee_f_y{0}; double ee_f_z{0};	//	EE FORCE
-	double ee_t_x{0}; double ee_t_y{0}; double ee_t_z{0};	//	EE TORQUE
-	double ee_position_x{0}; double ee_position_y{0}; double ee_position_z{0};	//	EE POSITION (retrieved continuously)
-	double roll{0}; double pitch{0}; double yaw{0};	//	EE PRY ORIENTATION
-	double q_x{0}; double q_y{0}; double q_z{0}; double q_w{0};	//	EE QUAT ORIENTATION
+	double ee_f_x; double ee_f_y; double ee_f_z;	//	EE FORCE
+	double ee_t_x; double ee_t_y; double ee_t_z;	//	EE TORQUE
+	double ee_position_x; double ee_position_y; double ee_position_z;	//	EE POSITION (retrieved continuously)
+	double roll; double pitch; double yaw;	//	EE PRY ORIENTATION
+	double q_x; double q_y; double q_z; double q_w;	//	EE QUAT ORIENTATION
 	
 	int flag_init = 1; //this flag is to retrieve and save in (xi, yi, zi) the position of the initial configuration of the robot at first step
 	enum ControlState {
@@ -73,11 +66,11 @@ private:
 	ControlState state_control = IMPEDANCE_CONTROL; // control initialized to IMPEDANCE CONTROL
 	
 	//	Predefined Reference Trajectory Variables
-	double xi{0}; double yi{0}; double zi{0};	//	EE initial position (tmp variable that changes during trajectory)
-	double x0{0}; double y0{0}; double z0{0};	//	EE initial position (fixed variable, never modified)
-	double x_new{0}; double y_new{0}; double z_new{0};	//	EE update position (for linear traj on 1 axis)
-	double xt{0}; double yt{0}; double zt{0};
-	double xf{0}; double yf{0}; double zf{0};
+	double xi; double yi; double zi;	//	EE initial position (tmp variable that changes during trajectory)
+	double x0; double y0; double z0;	//	EE initial position (fixed variable, never modified)
+	double x_new; double y_new; double z_new;	//	EE update position (for linear traj on 1 axis)
+	double xt; double yt; double zt;
+	double xf; double yf; double zf;
 //	NOTE: (xt, yt, zt) and (x_new, y_new, z_new) are actually used in the same way
 //	double T = 3; //duration of trajectory execution = (T * SubSteps)/loop_rate
 //	int SubSteps = 300;	//SubSteps = 1/t of 5th order polynomial interpolation
@@ -113,26 +106,21 @@ private:
 	
 
 public:
-	UltrasoundTrajNode() : rclcpp::Node("linear_traj_node_Luca") {
-        feedback_timeout_ = ultrasound_trajectory::startup_parameter(*this, "feedback_timeout", feedback_timeout_);
-        trajectory_timer_ = rclcpp::create_timer(this, get_clock(),
-            rclcpp::Duration::from_seconds(0.01), [this]() {
-                if (latest_pose_ && (now() - last_pose_time_).seconds() <= feedback_timeout_) {
-                    run_trajectory(latest_pose_);
-                }
-            });
+	
 
+    rclcpp::Node::SharedPtr node() { return nh; }  // ROS 2: node to spin in main()
+	UltrasoundTrajNode(){
 		
-		sub_ft = create_subscription<lwr_controllers::msg::ArmState>("/lwr/arm_state_controller/arm_state", rclcpp::SensorDataQoS(), std::bind(&UltrasoundTrajNode::callback_ft, this, std::placeholders::_1));
-		sub_pose = create_subscription<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/end_effector", rclcpp::SensorDataQoS(), std::bind(&UltrasoundTrajNode::callback_pose, this, std::placeholders::_1));
-		// sub_stiffness = create_subscription<std_msgs::msg::Float64>("/stiffness", rclcpp::QoS(10), std::bind(&UltrasoundTrajNode::callback_stiffness, this, std::placeholders::_1));
-		sub_force_calib = create_subscription<geometry_msgs::msg::Twist>("/Force", rclcpp::QoS(10), std::bind(&UltrasoundTrajNode::callback_force, this, std::placeholders::_1));
+		sub_ft = nh->create_subscription<lwr_controllers::msg::ArmState>("/lwr/arm_state_controller/arm_state", 10, std::bind(&UltrasoundTrajNode::callback_ft, this, std::placeholders::_1));
+		sub_pose = nh->create_subscription<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/end_effector", 10, std::bind(&UltrasoundTrajNode::callback_pose, this, std::placeholders::_1));
+		// sub_stiffness = nh->create_subscription<std_msgs::msg::Float64>("/stiffness", 10, std::bind(&UltrasoundTrajNode::callback_stiffness, this, std::placeholders::_1));
+		sub_force_calib = nh->create_subscription<geometry_msgs::msg::Twist>("/Force", 10, std::bind(&UltrasoundTrajNode::callback_force, this, std::placeholders::_1));
 
-		pub_command = create_publisher<lwr_controllers::msg::CartesianImpedancePoint>("/lwr/cartesian_impedance_controller/command", 10);
-		pub_PID = create_publisher<std_msgs::msg::Bool>("/enable_PID", 10);
+		pub_command = nh->create_publisher<lwr_controllers::msg::CartesianImpedancePoint>("/lwr/cartesian_impedance_controller/command", 10);
+		pub_PID = nh->create_publisher<std_msgs::msg::Bool>("/enable_PID", 10);
 	}
 
-	void callback_ft(const lwr_controllers::msg::ArmState::ConstSharedPtr& ft_msg) {
+	void callback_ft(const lwr_controllers::msg::ArmState::ConstSharedPtr  ft_msg) {
 //		Subscribe to ee force, torque (from arm_state_controller)
 // 		Read force from Force Sensor;
 		
@@ -156,18 +144,18 @@ public:
 		*/
 	}
 
-	void callback_force(const geometry_msgs::msg::Twist::ConstSharedPtr& force_msg){
-		 // Ottiene l'istante temporale corrente
-		
+	void callback_force(const geometry_msgs::msg::Twist::ConstSharedPtr  force_msg){
+		rclcpp::Time current_time = nh->now(); // Ottiene l'istante temporale corrente
+		double current_time1 = current_time.seconds();
 		F_z = force_msg -> linear.z-1.66;
-		
-		//RCLCPP_INFO(get_logger(), "sec: %f",delta_t);	
-			//RCLCPP_INFO(get_logger(), "derivata: %f",dF_z_dt);
+		double delta_t = (current_time1 - prev_time);
+		//RCLCPP_INFO(nh->get_logger(), "sec: %f",delta_t);	
+			//RCLCPP_INFO(nh->get_logger(), "derivata: %f",dF_z_dt);
        		if (F_z < threshold_f && !force_control_executed) {
             	state_control = FORCE_CONTROL;
-				RCLCPP_INFO(get_logger(), "State Control = FORCE_CONTROL");
+				RCLCPP_INFO(nh->get_logger(), "State Control = FORCE_CONTROL");
 				i_sample++;
-				if (i_sample >= 50) {
+				if (i_sample =50) {
 						i_sample=0;
 						if (buffer.size()>=3){
 							buffer.erase(buffer.begin());
@@ -177,21 +165,19 @@ public:
 							if (buffer[0]-buffer[1]>0.0002 && buffer[2]-buffer[1]>0.0002){  //  buffer[1]<buffer[0] && buffer[1]<buffer[2]
 								state_control = IMPEDANCE_CONTROL; 
 								force_control_executed= true; 
-								RCLCPP_INFO(get_logger(), "FORCE CONTROL EXECUTED------> IMP CONTROL");
+								RCLCPP_INFO (nh->get_logger(), "FORCE CONTROL EXECUTED------> IMP CONTROL");
 							}
 						}		
 				}
-		if (buffer.size() == 3) {
-            RCLCPP_INFO(get_logger(), "BUFFER IS %f, %f, %f", buffer[0], buffer[1], buffer[2]);
-        }
+		RCLCPP_INFO(nh->get_logger(), "BUFFER IS %f, %f, %f", buffer[0], buffer[1], buffer[2]);
         	} 	
 			// else if (dF_z_dt > 1.0) {
             // 	state_control = IMPEDANCE_CONTROL; // Cambia lo stato per impedire ulteriori esecuzioni
-			// 	RCLCPP_INFO(get_logger(), "FORCE CONTROL EXECUTED");
+			// 	RCLCPP_INFO (nh->get_logger(), "FORCE CONTROL EXECUTED");
 			// 	force_control_executed= true; // Impedisce future esecuzioni del controllo in forza
         	// }
 			
-        	prev_time = now().seconds();
+        	prev_time = current_time1;
         	F_z_prev = F_z;
 		
 		////////////////////////////////////////////////////////////////////////////////////// 
@@ -200,16 +186,16 @@ public:
 		
 	}
 
-	void callback_stiffness(const std_msgs::msg::Float64::ConstSharedPtr& stiff_msg){
+	void callback_stiffness(const std_msgs::msg::Float64::ConstSharedPtr  stiff_msg){
 //		Subscribe to optimized stiffness (from qp_node)
 		K_z = stiff_msg->data;
-		RCLCPP_INFO(get_logger(), "K_z from qp_node: %f", K_z);
+		RCLCPP_INFO(nh->get_logger(), "K_z from qp_node: %f", K_z);
 	}
 
 
 	void applyImpedanceControl() {
-	    	// 100 Hz
-		RCLCPP_INFO(get_logger(), "IMPEDANCE CONTROL");   
+	    rclcpp::Rate loop_rate(100);	// 100 Hz
+		RCLCPP_INFO (nh->get_logger(), "IMPEDANCE CONTROL");   
 
 		if (i <= T * SubSteps)
 		{
@@ -224,14 +210,14 @@ public:
 			command_msg.f_fri.force.z = F_z;
 
 			//command_msg.k_fri.z = K_z;	// 500 N/m
-			//RCLCPP_INFO(get_logger(), "K_z publishing: %f", K_z);
+			//RCLCPP_INFO(nh->get_logger(), "K_z publishing: %f", K_z);
 			pub_command->publish(command_msg);
 
 			i++;
 			i_home++;
-			//RCLCPP_INFO(get_logger(), "i: %d, x_cmd: %f, y_cmd: %f, z_cmd: %f", i, xi, yi, zt);
-			//RCLCPP_INFO(get_logger(), "Moving from the home position to the start position.");
-			
+			//RCLCPP_INFO(nh->get_logger(), "i: %d, x_cmd: %f, y_cmd: %f, z_cmd: %f", i, xi, yi, zt);
+			//RCLCPP_INFO(nh->get_logger(), "Moving from the home position to the start position.");
+			loop_rate.sleep();
 		}
 
 		if (i > T * SubSteps && i <= 2 * T * SubSteps)
@@ -245,9 +231,9 @@ public:
 			pub_command->publish(command_msg);
 
 			i++;
-			//RCLCPP_INFO(get_logger(), "i: %d, x_cmd: %f, y_cmd: %f, z_cmd: %f", i, xi, yi, zt);
-			RCLCPP_INFO(get_logger(), "Reached the final position.");
-			
+			//RCLCPP_INFO(nh->get_logger(), "i: %d, x_cmd: %f, y_cmd: %f, z_cmd: %f", i, xi, yi, zt);
+			RCLCPP_INFO(nh->get_logger(), "Reached the final position.");
+			loop_rate.sleep();
 			
 		}
 
@@ -258,13 +244,13 @@ public:
 		}
 	
 	void applyForceControl() {
-			
+		rclcpp::Rate loop_rate(100);	
 				if (force_control_executed) {
 				state_control=IMPEDANCE_CONTROL;
 				}
     //Force Control
 				if (!force_control_executed){
-					
+					double deltaFz = (F_z - F_z_prev);
 					double force_increment = 0.1; // Adjust this value as needed
 					
 					new_force_reference=new_force_reference+force_increment; // Adjusting the z-force directly
@@ -282,7 +268,7 @@ public:
 					command_msg.f_fri.force.y = 0.0;
 					if (new_force_reference >= 5){
 						new_force_reference=5;
-						//RCLCPP_INFO(get_logger(), "FORCE THRESHOLD %f", new_force_reference); 
+						//RCLCPP_INFO(nh->get_logger(), "FORCE THRESHOLD %f", new_force_reference); 
 					}
 					
 					command_msg.f_fri.force.z = new_force_reference;
@@ -299,8 +285,8 @@ public:
 
 					pub_command->publish(command_msg);
 						
-					RCLCPP_INFO(get_logger(), "FORCE CONTROL : Force reference: %f", new_force_reference);
-					//RCLCPP_INFO(get_logger(), "Position %f",ee_position_z );
+					RCLCPP_INFO(nh->get_logger(), "FORCE CONTROL : Force reference: %f", new_force_reference);
+					//RCLCPP_INFO(nh->get_logger(), "Position %f",ee_position_z );
 					//		}
 				}
 			
@@ -320,16 +306,10 @@ public:
 	}
 
 
-	void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr& msg) {
-        if (!ultrasound_trajectory::finite_pose(*msg)) {return;}
-        latest_pose_ = msg;
-        last_pose_time_ = now();
-    }
-
-    void run_trajectory(const lwr_controllers::msg::PoseRPY::ConstSharedPtr& pose_msg) {
+	void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr  pose_msg) {
 		
 //		Subscribe to current ee position, orientation (from cartesian_position_node)
-		//RCLCPP_INFO(get_logger(), "Callback pose");
+		//RCLCPP_INFO(nh->get_logger(), "Callback pose");
 		ee_position_x = pose_msg->position.x;
 		ee_position_y = pose_msg->position.y;
 		ee_position_z = pose_msg->position.z;
@@ -343,9 +323,9 @@ public:
 		q_z = (cos(roll*0.5) * cos(pitch*0.5) * sin(yaw*0.5)) - (sin(roll*0.5) * sin(pitch*0.5) * cos(yaw*0.5));		
 		q_w = (cos(roll*0.5) * cos(pitch*0.5) * cos(yaw*0.5)) + (sin(roll*0.5) * sin(pitch*0.5) * sin(yaw*0.5));
 /*		
-		RCLCPP_INFO(get_logger(), "POSITION - x: %f, y: %f, z: %f", ee_position_x, ee_position_y, ee_position_z);
-		RCLCPP_INFO(get_logger(), "ORIENTATION - roll: %f, pitch: %f, yaw: %f", roll, pitch, yaw);
-		RCLCPP_INFO(get_logger(), "QUATERNION - q_x: %f, q_y: %f, q_z: %f, q_w: %f", q_x, q_y, q_z, q_w);
+		RCLCPP_INFO(nh->get_logger(), "POSITION - x: %f, y: %f, z: %f", ee_position_x, ee_position_y, ee_position_z);
+		RCLCPP_INFO(nh->get_logger(), "ORIENTATION - roll: %f, pitch: %f, yaw: %f", roll, pitch, yaw);
+		RCLCPP_INFO(nh->get_logger(), "QUATERNION - q_x: %f, q_y: %f, q_z: %f, q_w: %f", q_x, q_y, q_z, q_w);
 */
 
 ////////		From here commands are sent to the REAL ROBOT from cartesian_impedance_controller command_msg
@@ -392,15 +372,11 @@ public:
 
 };	//end class
 
-int main(int argc, char ** argv) {
-    rclcpp::init(argc, argv);
-    int result = 0;
-    try {
-        rclcpp::spin(std::make_shared<UltrasoundTrajNode>());
-    } catch (const std::exception & error) {
-        RCLCPP_ERROR(rclcpp::get_logger("linear_traj_node_Luca"), "%s", error.what());
-        result = 1;
-    }
-    if (rclcpp::ok()) {rclcpp::shutdown();}
-    return result;
+int main(int argc, char **argv){
+	rclcpp::init(argc, argv);
+	
+	UltrasoundTrajNode ultrasound_traj_node;
+	rclcpp::spin(ultrasound_traj_node.node());
+	rclcpp::shutdown();
+	return 0;
 }

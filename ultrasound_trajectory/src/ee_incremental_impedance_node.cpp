@@ -1,6 +1,3 @@
-#include "ultrasound_trajectory/ros2_support.hpp"
-#include <functional>
-#include <rclcpp/create_timer.hpp>
 /*
  * ee_incremental_impedance_node.cpp
  *
@@ -35,8 +32,8 @@
  * *current* local z-axis so the measured contact force converges to and
  * holds a fixed setpoint (~target_force_z), independent of unknown
  * tissue/surface stiffness. This is an admittance-style outer loop: it reads
- * real force feedback (~force_topic) and adjusts x_fri.position accordingly;
- * it does NOT use the f_fri feedforward force channel, to keep the loop
+ * real force feedback (~force_topic) and adjusts x_FRI.position accordingly;
+ * it does NOT use the f_FRI feedforward force channel, to keep the loop
  * single-channel and easy to reason about/tune.
  *
  * SAFETY: force control starts DISABLED and must be explicitly turned on via
@@ -48,13 +45,13 @@
  * this for real tissue contact.
  */
 
-#include <rclcpp/rclcpp.hpp>
-#include <geometry_msgs/msg/twist.hpp>
-#include <geometry_msgs/msg/wrench.hpp>
-#include <std_srvs/srv/set_bool.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/wrench.hpp"
+#include "std_srvs/srv/set_bool.hpp"
 //  kuka-lwr Controllers Msgs
-#include <lwr_controllers/msg/pose_rpy.hpp>
-#include <lwr_controllers/msg/cartesian_impedance_point.hpp>
+#include "lwr_controllers/msg/pose_rpy.hpp"
+#include "lwr_controllers/msg/cartesian_impedance_point.hpp"
 //  Eigen lib
 #include <Eigen/Core>
 #include <Eigen/Geometry>   // AngleAxisd, rotation-matrix composition
@@ -66,18 +63,19 @@
 
 using namespace std;
 
-class EEIncrementalImpedanceNode : public rclcpp::Node {
+class EEIncrementalImpedanceNode {
 
 private:
-    rclcpp::Subscription<lwr_controllers::msg::PoseRPY>::SharedPtr sub_pose;    // current EE pose
-    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_action;  // incoming 6-DoF action
-    rclcpp::Subscription<geometry_msgs::msg::Wrench>::SharedPtr sub_force;   // measured force feedback (z-axis force control)
+    rclcpp::Node::SharedPtr nh = std::make_shared<rclcpp::Node>("ee_incremental_impedance_node");
+    rclcpp::SubscriptionBase::SharedPtr sub_pose;    // current EE pose
+    rclcpp::SubscriptionBase::SharedPtr sub_action;  // incoming 6-DoF action
+    rclcpp::SubscriptionBase::SharedPtr sub_force;   // measured force feedback (z-axis force control)
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr srv_enable_force;
 
     rclcpp::Publisher<lwr_controllers::msg::CartesianImpedancePoint>::SharedPtr pub_command; // impedance controller command
 
     lwr_controllers::msg::CartesianImpedancePoint command_msg;
-    string frame_id = "0";       // non-empty => x_fri is an absolute pose in this frame
+    string frame_id = "0";       // non-empty => x_FRI is an absolute pose in this frame
 
     // ── current EE state (base frame, from /cartesian_position/pose/end_effector) ──
     double ee_x = 0.0, ee_y = 0.0, ee_z = 0.0;
@@ -138,64 +136,60 @@ private:
     double max_force_travel    = 0.02;   // [m] hard cap on cumulative trim norm
     double max_allowed_force_z = 8.0;    // [N] hard safety cutoff on |measured force|
     double force_feedback_timeout = 0.5; // [s] treat feedback as stale beyond this
-    double stiffness_z_active  = 300.0;  // k_fri.z while force control is enabled (compliant)
+    double stiffness_z_active  = 300.0;  // k_FRI.z while force control is enabled (compliant)
 
 public:
-    EEIncrementalImpedanceNode() : rclcpp::Node("ee_incremental_impedance_node") {
+
+    rclcpp::Node::SharedPtr node() { return nh; }  // ROS 2: node to spin in main()
+    EEIncrementalImpedanceNode() {
         string pose_topic, action_topic, command_topic, force_topic;
-        pose_topic = ultrasound_trajectory::startup_parameter(*this, "pose_topic", std::string("/cartesian_position/pose/end_effector"));
-        action_topic = ultrasound_trajectory::startup_parameter(*this, "action_topic", std::string("/ee_action_impedance"));
-        command_topic = ultrasound_trajectory::startup_parameter(*this, "command_topic", std::string("/lwr/cartesian_impedance_controller/command"));
-        force_topic = ultrasound_trajectory::startup_parameter(*this, "force_topic", std::string("/Force_calibrated"));
+        pose_topic = nh->declare_parameter<std::string>("pose_topic", "/cartesian_position/pose/end_effector");
+        action_topic = nh->declare_parameter<std::string>("action_topic", "/ee_action_impedance");
+        command_topic = nh->declare_parameter<std::string>("command_topic", "/lwr/cartesian_impedance_controller/command");
+        force_topic = nh->declare_parameter<std::string>("force_topic", "/Force_calibrated");
 
-        T = ultrasound_trajectory::startup_parameter(*this, "step_duration", T);
-        stiffness_linear = ultrasound_trajectory::startup_parameter(*this, "stiffness_linear", stiffness_linear);
-        stiffness_angular = ultrasound_trajectory::startup_parameter(*this, "stiffness_angular", stiffness_angular);
-        damping = ultrasound_trajectory::startup_parameter(*this, "damping", damping);
-        max_linear_step = ultrasound_trajectory::startup_parameter(*this, "max_linear_step", max_linear_step);
-        max_angular_step = ultrasound_trajectory::startup_parameter(*this, "max_angular_step", max_angular_step);
+        T = nh->declare_parameter("step_duration", T);
+        stiffness_linear = nh->declare_parameter("stiffness_linear", stiffness_linear);
+        stiffness_angular = nh->declare_parameter("stiffness_angular", stiffness_angular);
+        damping = nh->declare_parameter("damping", damping);
+        max_linear_step = nh->declare_parameter("max_linear_step", max_linear_step);
+        max_angular_step = nh->declare_parameter("max_angular_step", max_angular_step);
 
-        target_force_z = ultrasound_trajectory::startup_parameter(*this, "target_force_z", target_force_z);
-        force_sign = ultrasound_trajectory::startup_parameter(*this, "force_sign", force_sign);
-        force_kp = ultrasound_trajectory::startup_parameter(*this, "force_kp", force_kp);
-        force_ki = ultrasound_trajectory::startup_parameter(*this, "force_ki", force_ki);
-        max_force_step_rate = ultrasound_trajectory::startup_parameter(*this, "max_force_step_rate", max_force_step_rate);
-        max_force_travel = ultrasound_trajectory::startup_parameter(*this, "max_force_travel", max_force_travel);
-        max_allowed_force_z = ultrasound_trajectory::startup_parameter(*this, "max_allowed_force_z", max_allowed_force_z);
-        force_feedback_timeout = ultrasound_trajectory::startup_parameter(*this, "force_feedback_timeout", force_feedback_timeout);
-        stiffness_z_active = ultrasound_trajectory::startup_parameter(*this, "stiffness_z_active", stiffness_z_active);
+        target_force_z = nh->declare_parameter("target_force_z", target_force_z);
+        force_sign = nh->declare_parameter("force_sign", force_sign);
+        force_kp = nh->declare_parameter("force_kp", force_kp);
+        force_ki = nh->declare_parameter("force_ki", force_ki);
+        max_force_step_rate = nh->declare_parameter("max_force_step_rate", max_force_step_rate);
+        max_force_travel = nh->declare_parameter("max_force_travel", max_force_travel);
+        max_allowed_force_z = nh->declare_parameter("max_allowed_force_z", max_allowed_force_z);
+        force_feedback_timeout = nh->declare_parameter("force_feedback_timeout", force_feedback_timeout);
+        stiffness_z_active = nh->declare_parameter("stiffness_z_active", stiffness_z_active);
 
-        if (!std::isfinite(T) || T <= 0.0 || !std::isfinite(force_feedback_timeout) ||
-            force_feedback_timeout <= 0.0 || max_linear_step <= 0.0 || max_angular_step <= 0.0) {
-            throw std::invalid_argument("Invalid duration or feedback/step limits");
-        }
-        sub_pose = create_subscription<lwr_controllers::msg::PoseRPY>(pose_topic, rclcpp::SensorDataQoS(), std::bind(&EEIncrementalImpedanceNode::callback_pose, this, std::placeholders::_1));
-        sub_action = create_subscription<geometry_msgs::msg::Twist>(action_topic, rclcpp::QoS(1), std::bind(&EEIncrementalImpedanceNode::callback_action, this, std::placeholders::_1));
-        sub_force = create_subscription<geometry_msgs::msg::Wrench>(force_topic, rclcpp::SensorDataQoS(), std::bind(&EEIncrementalImpedanceNode::callback_force, this, std::placeholders::_1));
+        sub_pose = nh->create_subscription<lwr_controllers::msg::PoseRPY>(pose_topic, 10, std::bind(&EEIncrementalImpedanceNode::callback_pose, this, std::placeholders::_1));
+        sub_action = nh->create_subscription<geometry_msgs::msg::Twist>(action_topic, 1, std::bind(&EEIncrementalImpedanceNode::callback_action, this, std::placeholders::_1));
+        sub_force = nh->create_subscription<geometry_msgs::msg::Wrench>(force_topic, 10, std::bind(&EEIncrementalImpedanceNode::callback_force, this, std::placeholders::_1));
 
-        srv_enable_force = create_service<std_srvs::srv::SetBool>("~/enable_force_control",
-            [this](std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-                   std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
-                handle_enable_force_control(*request, *response);
-            });
+        srv_enable_force = nh->create_service<std_srvs::srv::SetBool>("~/enable_force_control",
+                                  [this](const std::shared_ptr<std_srvs::srv::SetBool::Request> req,
+                                         std::shared_ptr<std_srvs::srv::SetBool::Response> res) {
+                                      handle_enable_force_control(*req, *res);});
 
-        pub_command = create_publisher<lwr_controllers::msg::CartesianImpedancePoint>(command_topic, 10);
+        pub_command = nh->create_publisher<lwr_controllers::msg::CartesianImpedancePoint>(command_topic, 10);
 
-        RCLCPP_INFO(get_logger(), "[ee_incremental_impedance_node] Ready. pose_topic=%s action_topic=%s "
+        RCLCPP_INFO(nh->get_logger(), "[ee_incremental_impedance_node] Ready. pose_topic=%s action_topic=%s "
                  "command_topic=%s force_topic=%s. Force control DISABLED at startup -- "
                  "call ~enable_force_control to arm it. Waiting for first pose...",
                  pose_topic.c_str(), action_topic.c_str(), command_topic.c_str(), force_topic.c_str());
     }
 
     // ── force feedback callback ─────────────────────────────────────────────────
-    void callback_force(const geometry_msgs::msg::Wrench::ConstSharedPtr& force_msg) {
+    void callback_force(const geometry_msgs::msg::Wrench::ConstSharedPtr  force_msg) {
         // Same convention as linear_traj_node.cpp: force.z read directly, no
-        // rotation applied -- CartesianImpedancePoint.msg documents f_fri (and,
+        // rotation applied -- CartesianImpedancePoint.msg documents f_FRI (and,
         // by the same sensor mounting, this feedback) as expressed in the
         // current tip/EE frame already.
-        if (!std::isfinite(force_msg->force.z)) {return;}
         measured_force_z = force_msg->force.z;
-        last_force_msg_time = now();
+        last_force_msg_time = nh->now();
         force_feedback_received = true;
     }
 
@@ -209,7 +203,7 @@ public:
                 return true;
             }
             if (!force_feedback_received ||
-                (now() - last_force_msg_time).seconds() > force_feedback_timeout) {
+                (nh->now() - last_force_msg_time).seconds() > force_feedback_timeout) {
                 res.success = false;
                 res.message = "no recent force feedback -- refusing to enable";
                 return true;
@@ -219,29 +213,28 @@ public:
             force_control_enabled = true;
             res.success = true;
             res.message = "force control enabled";
-            RCLCPP_WARN(get_logger(), "[ee_incremental_impedance_node] Force control ENABLED. "
+            RCLCPP_WARN(nh->get_logger(), "[ee_incremental_impedance_node] Force control ENABLED. "
                      "target_force_z=%.3f N force_sign=%.0f", target_force_z, force_sign);
         } else {
             force_control_enabled = false;
             force_fault            = false;
             res.success = true;
             res.message = "force control disabled";
-            RCLCPP_WARN(get_logger(), "[ee_incremental_impedance_node] Force control DISABLED. "
+            RCLCPP_WARN(nh->get_logger(), "[ee_incremental_impedance_node] Force control DISABLED. "
                      "Trim held at current value (no snap-back).");
         }
         return true;
     }
 
     // ── action callback ───────────────────────────────────────────────────────
-    void callback_action(const geometry_msgs::msg::Twist::ConstSharedPtr& msg) {
-        if (!ultrasound_trajectory::finite_twist(*msg)) {return;}
+    void callback_action(const geometry_msgs::msg::Twist::ConstSharedPtr  msg) {
         if (!pose_initialized) {
-            RCLCPP_WARN(get_logger(), "[ee_incremental_impedance_node] Action received before pose is "
+            RCLCPP_WARN(nh->get_logger(), "[ee_incremental_impedance_node] Action received before pose is "
                      "initialised — ignoring.");
             return;
         }
         if (executing) {
-            RCLCPP_WARN(get_logger(), "[ee_incremental_impedance_node] Still executing previous step — "
+            RCLCPP_WARN(nh->get_logger(), "[ee_incremental_impedance_node] Still executing previous step — "
                      "ignoring new action.");
             return;
         }
@@ -275,7 +268,7 @@ public:
             double lin_norm = dp_local.norm();
             if (lin_norm > max_linear_step) {
                 dp_local *= max_linear_step / lin_norm;
-                RCLCPP_WARN(get_logger(), "[ee_incremental_impedance_node] Linear step clamped: "
+                RCLCPP_WARN(nh->get_logger(), "[ee_incremental_impedance_node] Linear step clamped: "
                          "%.4f m -> %.4f m (max_linear_step)", lin_norm, max_linear_step);
             }
         }
@@ -286,13 +279,13 @@ public:
             double ang_norm = da.norm();
             if (ang_norm > max_angular_step) {
                 da *= max_angular_step / ang_norm;
-                RCLCPP_WARN(get_logger(), "[ee_incremental_impedance_node] Angular step clamped: "
+                RCLCPP_WARN(nh->get_logger(), "[ee_incremental_impedance_node] Angular step clamped: "
                          "%.4f rad -> %.4f rad (max_angular_step)", ang_norm, max_angular_step);
             }
         }
 
         if (force_control_enabled && std::abs(dp_local(2)) > 1e-9) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "[ee_incremental_impedance_node] Force control is "
+            RCLCPP_WARN_THROTTLE(nh->get_logger(), *nh->get_clock(), 2000, "[ee_incremental_impedance_node] Force control is "
                      "active -- ignoring the z component of this action (dz=%.4f). "
                      "z is governed by the force loop, not by ~action_topic, while enabled.",
                      dp_local(2));
@@ -325,7 +318,7 @@ public:
 
         action_pending = true;
 
-        RCLCPP_INFO(get_logger(), "[ee_incremental_impedance_node] New action received (after clamping): "
+        RCLCPP_INFO(nh->get_logger(), "[ee_incremental_impedance_node] New action received (after clamping): "
                  "delta dx=%.4f dy=%.4f dz=%.4f droll=%.4f dpitch=%.4f dyaw=%.4f -> "
                  "target x=%.4f y=%.4f z=%.4f",
                  dp_local(0), dp_local(1), dp_local(2), da(0), da(1), da(2), xt, yt, zt);
@@ -343,7 +336,7 @@ public:
 
         if (!force_feedback_received ||
             (now - last_force_msg_time).seconds() > force_feedback_timeout) {
-            RCLCPP_ERROR(get_logger(), "[ee_incremental_impedance_node] Force feedback stale (>%.2f s) -- "
+            RCLCPP_ERROR(nh->get_logger(), "[ee_incremental_impedance_node] Force feedback stale (>%.2f s) -- "
                      "disabling force control.", force_feedback_timeout);
             force_control_enabled = false;
             force_fault            = true;
@@ -351,7 +344,7 @@ public:
         }
 
         if (std::abs(measured_force_z) > max_allowed_force_z) {
-            RCLCPP_ERROR(get_logger(), "[ee_incremental_impedance_node] |measured F_z|=%.2f N exceeds "
+            RCLCPP_ERROR(nh->get_logger(), "[ee_incremental_impedance_node] |measured F_z|=%.2f N exceeds "
                      "max_allowed_force_z=%.2f N -- disabling force control.",
                      measured_force_z, max_allowed_force_z);
             force_control_enabled = false;
@@ -376,7 +369,7 @@ public:
         Eigen::Vector3d candidate = force_trim_offset + dz_local * ez_world;
         if (candidate.norm() > max_force_travel) {
             candidate = candidate.normalized() * max_force_travel;
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "[ee_incremental_impedance_node] max_force_travel "
+            RCLCPP_WARN_THROTTLE(nh->get_logger(), *nh->get_clock(), 1000, "[ee_incremental_impedance_node] max_force_travel "
                      "(%.4f m) reached -- holding trim, not tracking further.",
                      max_force_travel);
         }
@@ -384,8 +377,7 @@ public:
     }
 
     // ── pose callback ────────────────────────────────────────────────────────
-    void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr& pose_msg) {
-        if (!ultrasound_trajectory::finite_pose(*pose_msg)) {return;}
+    void callback_pose(const lwr_controllers::msg::PoseRPY::ConstSharedPtr  pose_msg) {
 
         ee_x     = pose_msg->position.x;
         ee_y     = pose_msg->position.y;
@@ -426,7 +418,7 @@ public:
             q_start = q_target = q_init;
 
             pose_initialized = true;
-            RCLCPP_INFO(get_logger(), "[ee_incremental_impedance_node] Pose initialised. "
+            RCLCPP_INFO(nh->get_logger(), "[ee_incremental_impedance_node] Pose initialised. "
                      "Waiting for action...");
         }
 
@@ -434,8 +426,8 @@ public:
         if (action_pending) {
             action_pending  = false;
             executing       = true;
-            step_start_time = now();
-            RCLCPP_INFO(get_logger(), "[ee_incremental_impedance_node] Executing step (T=%.2f s) ...", T);
+            step_start_time = nh->now();
+            RCLCPP_INFO(nh->get_logger(), "[ee_incremental_impedance_node] Executing step (T=%.2f s) ...", T);
         }
 
         // ── base x/y/z/orientation target from the position-control step ──────
@@ -443,7 +435,7 @@ public:
         Eigen::Quaterniond q_interp;
 
         if (executing) {
-            double elapsed = (now() - step_start_time).seconds();
+            double elapsed = (nh->now() - step_start_time).seconds();
             double Rho     = elapsed / T;
             bool   finished = Rho >= 1.0;
             Rho = std::min(std::max(Rho, 0.0), 1.0);
@@ -460,7 +452,7 @@ public:
 
             if (finished) {
                 executing = false;
-                RCLCPP_INFO(get_logger(), "[ee_incremental_impedance_node] Step completed. "
+                RCLCPP_INFO(nh->get_logger(), "[ee_incremental_impedance_node] Step completed. "
                          "Holding target pose. Waiting for next action...");
             }
         } else {
@@ -477,7 +469,7 @@ public:
             (Eigen::AngleAxisd(ee_yaw,   Eigen::Vector3d::UnitZ())
            * Eigen::AngleAxisd(ee_pitch, Eigen::Vector3d::UnitY())
            * Eigen::AngleAxisd(ee_roll,  Eigen::Vector3d::UnitX())).toRotationMatrix();
-        update_force_control(now(), R_now);
+        update_force_control(nh->now(), R_now);
 
         command_msg.k_fri.z = force_control_enabled ? stiffness_z_active : stiffness_linear;
 
@@ -494,15 +486,10 @@ public:
     }
 };
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
-    int result = 0;
-    try {
-        rclcpp::spin(std::make_shared<EEIncrementalImpedanceNode>());
-    } catch (const std::exception & error) {
-        RCLCPP_ERROR(rclcpp::get_logger("ee_incremental_impedance_node"), "%s", error.what());
-        result = 1;
-    }
-    if (rclcpp::ok()) {rclcpp::shutdown();}
-    return result;
+    EEIncrementalImpedanceNode node;
+    rclcpp::spin(node.node());
+	rclcpp::shutdown();
+    return 0;
 }

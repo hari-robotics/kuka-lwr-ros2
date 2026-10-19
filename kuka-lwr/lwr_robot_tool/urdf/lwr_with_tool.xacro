@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="lwr_robot_with_tool">
+
+  <!-- lwr -->
+  <xacro:include filename="$(find lwr_description)/model/kuka_lwr.urdf.xacro"/>
+  <!-- end-effector -->
+  <xacro:include filename="tool.xacro" />
+
+  <!-- ur5 -->
+  <!-- The ur5 xacro must be included with passing parameters -->
+  <xacro:kuka_lwr parent="world" name="lwr">
+	<origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:kuka_lwr>
+  <!-- end-effector -->
+  <!-- Here we include the end-effector by setting the parameters -->
+  <!-- TODO: check end-effector link name of robot -->
+  <xacro:tool prefix="" connected_to="lwr_7_link"/>
+
+  <!-- define the ur5's position and orientation in the world coordinate system -->
+  <link name="world" />
+  <joint name="world_joint" type="fixed">
+    <parent link="world" />
+    <child link="lwr_base_link" /> <!-- TODO: check base_link name of robot -->
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+  </joint>
+</robot>
+
