@@ -1,0 +1,28 @@
+geometry_msgs/Pose target_probe_pose
+bool recovery
+uint8 POSE_SETTLED=0
+uint8 TRAJECTORY_COMPLETE_GUARDED=1
+uint8 TRAJECTORY_COMPLETE=2
+uint8 completion_policy
+uint8 DEFAULT_PROFILE=0
+uint8 LOCAL_Z_PROFILE=1
+uint8 FIXED_DURATION_PROFILE=2
+uint8 motion_profile
+float64 max_following_position_error_m
+float64 max_following_orientation_error_rad
+float64 position_tolerance_m
+float64 orientation_tolerance_rad
+float64 settle_time_sec
+float64 settling_timeout_sec
+---
+bool success
+string reason
+float64 final_position_error_m
+float64 final_orientation_error_rad
+float64 trajectory_duration_sec
+float64 settling_duration_sec
+float64 following_guard_pause_duration_sec
+---
+string phase
+float64 position_error_m
+float64 orientation_error_rad

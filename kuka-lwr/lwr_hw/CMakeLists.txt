@@ -43,6 +43,7 @@ install(TARGETS lwr_hw lwr_hw_fri friremote EXPORT export_lwr_hw
 install(TARGETS lwr_hw_gazebo_plugin LIBRARY DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch krl doc DESTINATION share/${PROJECT_NAME} PATTERN "__pycache__" EXCLUDE)
+install(PROGRAMS scripts/fri_monitor.py DESTINATION lib/${PROJECT_NAME})
 ament_export_targets(export_lwr_hw HAS_LIBRARY_TARGET)
 ament_export_dependencies(${hw_dependencies} Threads)
 ament_package()

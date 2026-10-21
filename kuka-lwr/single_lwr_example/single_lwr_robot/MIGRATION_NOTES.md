@@ -30,7 +30,7 @@
 
 ## 需人工确认
 1. **stiffness_trajectory_controller**：ROS1 配置中有，但依赖刚度元数据关节；ROS2 未提供（见 lwr_controllers 的 NOTES）。
-2. **hierarchical_controller / basic_joint_controller**：类型 `kuka_controllers/*` 来自 `kuka_ws/src/kuka/kuka_controllers`，该包不在本工作空间，配置照搬但无法加载（ROS1 中未编译该包时同样无法加载）。
+2. **hierarchical_controller / basic_joint_controller**：类型 `kuka_controllers/*` 来自 `kuka_ws/src/kuka/kuka_controllers`，已移植为 `kuka-lwr/kuka_controllers`（见该包 MIGRATION_NOTES），配置照搬。
 3. **t1_joint_limits.yaml（实验室版本）**：`joint_limits:` 下为空，各关节键位于顶层，速度上限 3.5、无加速度限制。`t1_limits:=true` 时 ROS1 roslaunch 无法设置空值参数而启动失败；ROS2 `move_group.launch.py` 叠加后同样因参数值 None 在启动时报错（`Unexpected type for parameter value None`）。保持一致，未修正。
 4. **joint_state_controller publish_rate**：Humble 的 JointStateBroadcaster 不使用 `publish_rate`，每个控制周期（1000 Hz）都发布，`/lwr/joint_states` 及其下游（cartesian_position_node 的位姿、ee_incremental_motion 的 IK 指令）都变成 1000 Hz，Gazebo CPU 166%。已加控制器参数 `update_rate: 200`，实测 200 Hz，与 ROS1 一致（`publish_rate: 200` 保留）。
 5. **底座 box 的 `<static>`**：写在 `<gazebo reference="box">` 内（link 级），Classic 与 Fortress 都不把它当作模型静态；模型以 box 为根自由放在地面上（ROS1 同样如此，质量 50 用于稳住底座）。

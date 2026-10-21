@@ -11,6 +11,8 @@
         <param name="file">$(arg fri_init_file)</param>
         <param name="root">${'$(arg hw_root)' or name + '_base_link'}</param>
         <param name="tip">${'$(arg hw_tip)' or name + '_7_link'}</param>
+        <!-- controller_manager update_rate, checked against the robot sample time (FRI) -->
+        <param name="update_rate">$(arg controller_update_rate)</param>
       </hardware>
       <joint name="${name}_a1_joint">
         <command_interface name="position"/>

@@ -8,8 +8,12 @@ The port follows the lab version in `kuka_ws/src/kuka-lwr`, `kuka_ws/src/ultraso
 |---|---|
 | Build (colcon, Humble), static launch equivalence with the ROS 1 lab version | ✅ passed (static launch checks) |
 | Kinematics in simulation (Gazebo Fortress): joint trajectory, forward kinematics / `cartesian_position_node`, `one_task_inverse_kinematics`, `pose_init`, `ee_incremental_motion` | ✅ passed (simulation workflow tests) |
-| Real robot (FRI / KRC) | ⏳ awaiting validation on the real KUKA LWR 4+ |
-| Dynamics and impedance control (`joint_impedance_controller`, `cartesian_impedance_controller`, torque-based controllers, `/est_ext_torque`) | ⚠️ not validated: Gazebo does not simulate the KUKA joint/Cartesian impedance (interfaces only checked) |
+| Packages used by the lab tutorial: `kuka_controllers` (hierarchical_controller), `kuka_teleop`, `ultrasound_probe_motion`, `ultrasound_probe_impedance` (node interface), `kuka_launch` | ✅ passed in simulation (`migration_tests/tutorial_packages`); force control itself ⚠️ needs the real robot |
+| Real robot (FRI / KRC): connection, monitor → command mode, `/lwr/joint_states`, `cartesian_position_node`, `/est_ext_torque` | ✅ passed on the real KUKA LWR 4+ (2026-10-21, Tool 8) |
+| Real robot: `one_task_inverse_kinematics`, `ee_incremental_motion` | ✅ passed on the real robot |
+| Real robot: `cartesian_impedance_controller` (switch from `one_task_inverse_kinematics`, stiffness/damping commands via `stiffness_demo.py`) | ✅ passed on the real robot |
+| `sriforcesensor`, force control (`ultrasound_probe_impedance`), `frame_grabber` | ⏳ ported, built and checked without hardware; next milestone (real force sensor / frame grabber) |
+| Other dynamics controllers (`joint_impedance_controller`, torque-based controllers) | ⚠️ not validated: Gazebo does not simulate the KUKA joint/Cartesian impedance (interfaces only checked) |
 
 The migration tests live in the workspace-level `migration_tests/` directory (next to `src/`, not
 part of this repository; see [TESTING.md](TESTING.md)). Known differences from ROS 1 and items that
@@ -17,16 +21,24 @@ need confirmation before using the real robot are listed in each package's `MIGR
 (see in particular `kuka-lwr/lwr_hw`).
 
 ## Project Structure
-Same layout as the ROS 1 lab workspace (`kuka_ws/src`):
+Same layout as the ROS 1 lab workspace (`kuka_ws/src`); the KUKA packages of `kuka_ws/src/kuka` used by
+the lab tutorial are under `kuka-lwr/`:
 ```bash
 ├── cartesian_position_node        # Cartesian pose/velocity of flange and tooltip
+├── frame_grabber                  # camera / frame grabber image publisher (ultrasound image)
 ├── kuka-lwr
+│   ├── kuka_controllers           # hierarchical (RCM) / basic joint controllers (kuka_ws/src/kuka/kuka_controllers)
+│   ├── kuka_launch                # single_lwr launch with kuka_controllers config (kuka/kuka_launch, merged with the same-name copy in kuka_controllers)
 │   ├── kuka_lwr                   # meta package
+│   ├── kuka_teleop                # Sigma7 teleoperation script (kuka_ws/src/kuka/kuka_teleop)
 │   ├── lwr_controllers            # controllers (lab version)
 │   ├── lwr_description            # LWR 4+ URDF and meshes
 │   ├── lwr_hw                     # FRI hardware interface and Gazebo plugin (ros2_control)
 │   ├── lwr_robot_tool             # LWR + ultrasound tool description (kuka_ws/src/kuka/lwr_robot_tool)
 │   └── single_lwr_example         # robot config, launch files, MoveIt config
+├── sriforcesensor                 # SRI 6-axis force sensor driver (TCP) and tool gravity compensation
+├── ultrasound_probe_impedance     # probe-frame motion and z force control on the Cartesian impedance controller
+├── ultrasound_probe_motion        # probe-frame motion on one_task_inverse_kinematics, /probe_step action, probe calibration
 └── ultrasound_trajectory          # trajectory / motion nodes
 ```
 
@@ -101,12 +113,11 @@ ros2 run rqt_controller_manager rqt_controller_manager
 ```
 
 Make sure that you activated `joint_trajectory_controller`, `joint_state_controller` and `arm_state_controller`.
-`pose_init` keeps the ROS 1 topic name; the Humble trajectory controller listens on `~/joint_trajectory`, hence the remap.
+`pose_init` publishes on `/lwr/joint_trajectory_controller/joint_trajectory`, the topic of the Humble trajectory controller (ROS 1 `~/command`), so no remap is needed.
 
 And now you can run the following command to initialize the robot pose for ultrasound scanning:
 ```bash
-ros2 run ultrasound_trajectory pose_init --ros-args -p use_sim_time:=true \
-  -r /lwr/joint_trajectory_controller/command:=/lwr/joint_trajectory_controller/joint_trajectory
+ros2 run ultrasound_trajectory pose_init --ros-args -p use_sim_time:=true
 ```
 
 After initialization, deactivate `joint_trajectory_controller` and activate `one_task_inverse_kinematics`
@@ -125,20 +136,72 @@ Notice, the motion is relative motion, only publish the topic once.
 
 
 ## Run with real LWR robots connected
+PC setup (lab tutorial, "Communication preparation"):
+- the robot NIC has the static address `192.168.10.1/24`; `ping 192.168.10.2` reaches the KRC;
+- `/etc/security/limits.conf` uses the Linux **user name** (`whoami`), not the host name, e.g.
+  `hari hard rtprio 95`, `hari soft memlock unlimited`; with `session required pam_limits.so` in
+  `/etc/pam.d/common-session`, log in again or reboot and check that `ulimit -r -l` prints `95` and `unlimited`.
+
+Before starting ROS, the FRI link can be checked passively (the KRL program started, robot in
+monitor mode; nothing is sent back to the KRC):
+```bash
+ros2 run lwr_hw fri_monitor.py     # expect ~100 Hz from 192.168.10.2, state=MONITOR
+```
+`quality=UNACCEPTABLE` is expected here because no one answers; it becomes `PERFECT` once
+`lwr_hw` runs. If the teach pendant reports `Load data incorrect` / `Fix erroneous dynamic mode`,
+the selected tool (`BAS (#TOOL, n)` in the KRL program and *Configure - Set tool/base*) does not
+match the mounted tool.
+
 If you have configured everything correct, you can launch the real robot with following commands:
 ```bash
 ros2 launch single_lwr_launch single_lwr_tool.launch.py use_lwr_sim:=false lwr_powered:=true
 ```
 
-Otherwise, launch the robot with explict parameters:
+Otherwise, launch the robot with explict parameters (`update_rate` must match the KRL
+`friOpen()` period, 10 ms → 100 in the lab programs):
 ```bash
 ros2 launch single_lwr_launch single_lwr_tool.launch.py \
 use_lwr_sim:=false lwr_powered:=true \
-ip:=192.168.10.2 port:=49938 update_rate:=500 \
+ip:=192.168.10.2 port:=49938 update_rate:=100 \
 load_moveit:=false use_rviz:=true
 ```
 
 The remaining steps are the same as gazebo simulator, but do not use pose_init node since the real robot control already reads the initial position, you can adjust it through teching panel.
+
+### Cartesian impedance control (lab tutorial, real robot)
+`x_fri` of `lwr_controllers/CartesianImpedancePoint` is the absolute pose of the KRC `#TOOL` frame
+in the robot base, so every command has to start from the current pose published on
+`/lwr/cartesian_impedance_controller/cartesian_pose` (`publish_cartesian_pose: true` in
+`controllers.yaml`).
+```bash
+ros2 service call /lwr/controller_manager/load_controller controller_manager_msgs/srv/LoadController "{name: cartesian_impedance_controller}"
+ros2 service call /lwr/controller_manager/configure_controller controller_manager_msgs/srv/ConfigureController "{name: cartesian_impedance_controller}"
+ros2 service call /lwr/controller_manager/switch_controller controller_manager_msgs/srv/SwitchController \
+  "{activate_controllers: [cartesian_impedance_controller], deactivate_controllers: [one_task_inverse_kinematics], strictness: 2}"
+ros2 run lwr_controllers stiffness_demo.py   # holds the current pose and steps K: default → 1500 → 500 → 200 N/m → default
+```
+The switch makes the KRL program stop FRI, change `$stiffness.strategy` to 20 (CARTESIAN_IMPEDANCE)
+and start FRI again; the controller then holds the current pose with K = 800/800/200 N/m, 100 Nm/rad, D = 0.8.
+The `ros2 control ...` verbs below need `ros-humble-ros2controlcli`; the service calls above work without it.
+
+### Force control (lab tutorial, real robot)
+ROS 2 commands for the tutorial steps (teach pendant steps unchanged; Tool 8 / `ros_control_giorgia`):
+```bash
+ros2 launch single_lwr_launch single_lwr_tool.launch.py use_lwr_sim:=false lwr_powered:=true
+ros2 control switch_controllers --deactivate one_task_inverse_kinematics --activate cartesian_impedance_controller -c /lwr/controller_manager
+# (cartesian_impedance_controller has to be loaded first, e.g. "Load, Configure and Activate" in rqt_controller_manager)
+ros2 run sriforcesensor forcesensor
+cd src/sriforcesensor/src/ANN && ros2 run sriforcesensor tool_comp_ros.py      # publishes /Force_calibrated
+ros2 launch ultrasound_probe_impedance probe_incremental_force.launch.py        # or probe_incremental_impedance.launch.py
+ros2 service call /probe_incremental_force_node/enable_force_control std_srvs/srv/SetBool "{data: true}"
+ros2 topic pub --once /probe_action_force geometry_msgs/msg/Twist "{linear: {x: 0.01}}"   # /probe_action_impedance for the impedance node
+```
+
+### Teleoperation with the hierarchical controller (tutorial "kuka steps", Part 2)
+```bash
+ros2 launch single_lwr_launch single_lwr_tool.launch.py controllers:=hierarchical_controller   # add use_lwr_sim:=false lwr_powered:=true for the robot
+ros2 run kuka_teleop kuka_teleop.py      # needs a ROS 2 Sigma7 driver publishing /sigma/sigma0/pose and /sigma/sigma0/buttons
+```
 
 The explicit offline MoveIt demo remains available with
 `ros2 launch single_lwr_moveit demo.launch.py`. Migration equivalence tests are

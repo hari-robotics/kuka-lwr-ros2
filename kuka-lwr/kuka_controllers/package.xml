@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>kuka_controllers</name>
+  <version>0.0.0</version>
+  <description>The kuka_controllers package</description>
+  <maintainer email="valentin@todo.todo">valentin</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>angles</depend>
+  <depend>controller_interface</depend>
+  <depend>hardware_interface</depend>
+  <depend>control_msgs</depend>
+  <depend>control_toolbox</depend>
+  <depend>realtime_tools</depend>
+  <depend>urdf</depend>
+  <depend>eigen</depend>
+  <depend>kdl_parser</depend>
+  <depend>orocos_kdl_vendor</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>lwr_hw</depend>
+  <depend>lwr_controllers</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

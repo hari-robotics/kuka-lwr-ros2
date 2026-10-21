@@ -33,6 +33,7 @@
 	<xacro:arg name="fri_init_file" default=""/>
 	<xacro:arg name="hw_root" default=""/>
 	<xacro:arg name="hw_tip" default=""/>
+	<xacro:arg name="controller_update_rate" default=""/>
 
 	<!-- URDF model /-->
 	<xacro:macro name="kuka_lwr" params="parent name *origin">

@@ -80,8 +80,21 @@ public:
     sampling_rate_ = device_->getSampleTime();
     std::cout << "Sampling Rate: " << sampling_rate_ << std::endl;
     // TODO(ros2-migration): ROS 1 ran the control loop at 1/getSampleTime(); the
-    // ros2_control update_rate is fixed at launch (single_lwr.launch.py update_rate).
+    // ros2_control update_rate is fixed at launch (single_lwr.launch.py update_rate) and
+    // cannot follow the robot here, so a different rate is refused instead of being used.
     RCLCPP_INFO(rclcpp::get_logger("lwr_hw"), "Sampling time on robot: %f", sampling_rate_);
+    const std::string update_rate = parameter("update_rate");
+    if (!update_rate.empty() && sampling_rate_ > 0.0)
+    {
+      const double robot_rate = 1.0 / sampling_rate_;
+      if (std::fabs(std::stod(update_rate) - robot_rate) > 0.01 * robot_rate)
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("lwr_hw"),
+          "controller_manager update_rate %s Hz does not match the robot sample time %f s (%.1f Hz): "
+          "set update_rate:=%.0f", update_rate.c_str(), sampling_rate_, robot_rate, robot_rate);
+        return false;
+      }
+    }
 
     return true;
   }

@@ -15,6 +15,7 @@
   <xacro:arg name="fri_init_file" default=""/>
   <xacro:arg name="hw_root" default=""/>
   <xacro:arg name="hw_tip" default=""/>
+  <xacro:arg name="controller_update_rate" default=""/>
   <xacro:include filename="$(find lwr_description)/model/kuka_lwr.gazebo.xacro"/>
   <xacro:include filename="$(find lwr_description)/model/kuka_lwr.ros2_control.xacro"/>
   <material name="Kuka/DarkGrey">

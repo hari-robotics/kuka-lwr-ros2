@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>ultrasound_probe_motion</name>
+  <version>0.0.0</version>
+  <description>
+    Commands the KUKA LWR ultrasound probe with relative 6-DoF motions
+    expressed in the probe's own frame, converting them to absolute
+    base-frame PoseRPY commands for the existing one_task_inverse_kinematics
+    controller, using a fixed YAML-configurable end-effector-to-probe
+    calibration transform.
+  </description>
+  <maintainer email="u4267050275@gmail.com">nearlab</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>action_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>lwr_controllers</depend>
+  <depend>eigen</depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

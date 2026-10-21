@@ -5,7 +5,6 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/wrench.hpp>
 #include <kdl/frames.hpp>
-#include <mutex>
 #include <functional>
 
 namespace lwr_controllers {
@@ -13,11 +12,10 @@ namespace lwr_controllers {
 class NodeParameters {
 public:
   NodeParameters() = default;
-  explicit NodeParameters(rclcpp_lifecycle::LifecycleNode::SharedPtr node,
-                          std::mutex *mutex = nullptr, std::string prefix = "")
-    : node_(std::move(node)), mutex_(mutex), prefix_(std::move(prefix)) {}
+  explicit NodeParameters(rclcpp_lifecycle::LifecycleNode::SharedPtr node, std::string prefix = "")
+    : node_(std::move(node)), prefix_(std::move(prefix)) {}
   NodeParameters(const NodeParameters &other, const std::string &prefix)
-    : node_(other.node_), mutex_(other.mutex_), prefix_(other.prefix_ + prefix + ".") {}
+    : node_(other.node_), prefix_(other.prefix_ + prefix + ".") {}
   auto node() const {return node_;}
   std::string getNamespace() const {return node_->get_namespace();}
   std::string resolveName(const std::string &name) const {
@@ -46,24 +44,15 @@ public:
       const std::string &topic, size_t depth,
       void(C::*cb)(const std::shared_ptr<const M>&), C *owner) {
     return node_->create_subscription<M>(resolveName(topic), rclcpp::QoS(std::max<size_t>(1,depth)),
-      [this,owner,cb](const std::shared_ptr<const M> msg) {
-        std::unique_lock<std::mutex> lock;
-        if(mutex_) lock=std::unique_lock<std::mutex>(*mutex_);
-        (owner->*cb)(msg);
-      });
+      [owner,cb](const std::shared_ptr<const M> msg) {(owner->*cb)(msg);});
   }
   template<typename M,typename F> rclcpp::SubscriptionBase::SharedPtr subscribe_callback(
       const std::string &topic, F callback) {
     return node_->create_subscription<M>(resolveName(topic),1,
-      [this,callback](const std::shared_ptr<const M> msg) {
-        std::unique_lock<std::mutex> lock;
-        if(mutex_) lock=std::unique_lock<std::mutex>(*mutex_);
-        callback(msg);
-      });
+      [callback](const std::shared_ptr<const M> msg) {callback(msg);});
   }
 private:
   rclcpp_lifecycle::LifecycleNode::SharedPtr node_;
-  std::mutex *mutex_ = nullptr;
   std::string prefix_;
 };
 inline void wrenchKDLToMsg(const KDL::Wrench &w, geometry_msgs::msg::Wrench &msg) {

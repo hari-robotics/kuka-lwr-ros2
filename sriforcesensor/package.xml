@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>sriforcesensor</name>
+  <version>1.0.0</version>
+  <description>The sriforcesensor package</description>
+  <maintainer email="hang.su@polimi.it">Hang Su</maintainer>
+  <license>TODO</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>lwr_controllers</depend>
+  <depend>eigen</depend>
+  <exec_depend>rclpy</exec_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

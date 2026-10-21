@@ -103,7 +103,7 @@ namespace lwr_controllers
 
         sub_command_ = n.subscribe(n.resolveName("command"), 1, &CartesianImpedanceController::command, this);
         srv_command_ = n.node()->create_service<lwr_controllers::srv::SetCartesianImpedanceCommand>(n.resolveName("set_command"),
-            [this](const std::shared_ptr<lwr_controllers::srv::SetCartesianImpedanceCommand::Request> request, std::shared_ptr<lwr_controllers::srv::SetCartesianImpedanceCommand::Response> response){std::lock_guard<std::mutex> lock(callback_mutex_); command_cb(*request,*response);});
+            [this](const std::shared_ptr<lwr_controllers::srv::SetCartesianImpedanceCommand::Request> request, std::shared_ptr<lwr_controllers::srv::SetCartesianImpedanceCommand::Response> response){command_cb(*request,*response);});
         sub_ft_measures_ = n.subscribe(n.resolveName("ft_measures"), 1, &CartesianImpedanceController::updateFT, this);
         pub_goal_ = n.advertise<geometry_msgs::msg::PoseStamped>(n.resolveName("goal"),0);
         if (publish_cartesian_pose_)
@@ -205,7 +205,7 @@ namespace lwr_controllers
         return config;
     }
     controller_interface::CallbackReturn CartesianImpedanceController::on_activate(const rclcpp_lifecycle::State &) {
-        std::lock_guard<std::mutex> lock(callback_mutex_);
+        
         try {
             for (auto &handle:cart_handles_) {
                 handle.position=find_state(handle.name+"/position");handle.command=find_command(handle.name+"/position");

@@ -229,6 +229,13 @@ CallbackReturn LWRHW::on_error(const rclcpp_lifecycle::State &state)
 void LWRHW::pollEmergencyStop()
 {
   if (node_) rclcpp::spin_some(node_);
+  if (emergency_stop_ && !emergency_stop_handled_)
+  {
+    // same messages as ROS 1 lwr_hw_fri_node when the e-stop is pressed
+    RCLCPP_WARN(rclcpp::get_logger("lwr_hw"), "E-STOP HAS BEEN PRESSED: Controllers will be restarted, but the robot won't move until you release the E-Stop");
+    RCLCPP_WARN(rclcpp::get_logger("lwr_hw"), "HOW TO RELEASE E-STOP: ros2 topic pub -r 10 /NAMESPACE/emergency_stop std_msgs/msg/Bool 'data: false'");
+  }
+  emergency_stop_handled_ = emergency_stop_;
   if (emergency_stop_) semanticZero();
 }
 

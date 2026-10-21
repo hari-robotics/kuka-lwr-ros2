@@ -25,7 +25,8 @@
 - **节点结构**：控制器为 ros2_control 插件；`init(robot, nh)` → `on_configure`，`starting` 在 `on_activate` 中调用（loaned interface 此时才可用）。OneTaskInverseKinematics 把 ROS1 `init()` 中读取当前位姿/设定期望位姿移到 `starting()`，因为 ROS2 在 configure 时没有状态接口。
 - **参数**：私有参数（root_name、tip_name、stiffness_gains、pid_<joint> 等）名称与默认值不变；`robot_description` 从控制器节点参数读取（由 launch 写入 `/**` 或由 gz_ros2_control 注入），对应 ROS1 `ros::param::search("robot_description")`。
 - **话题/服务**：ROS1 控制器私有命名空间 → ROS2 `~/` 相对名，全名不变（如 `/lwr/one_task_inverse_kinematics/command`）；queue_size → QoS depth。
-- **线程**：适配层用 `callback_mutex_` 串行化订阅回调与 `update()`（ROS1 无锁，存在数据竞争），见需人工确认 2。
+- **线程**：与 ROS1 相同，订阅/服务回调与 `update()` 之间不加锁（ROS1 AsyncSpinner 线程与控制循环并发）。前次移植的 `callback_mutex_` 已删除（见需人工确认 2）。
+- **急停**：ROS1 `lwr_hw_fri_node` 在 `/lwr/emergency_stop` 为真期间每周期以 `resetControllers=true` 调用 `manager.update`，即对运行中的控制器 stopping()+starting()。controller_manager 无此接口，改由适配层实现：KinematicChainControllerBase 在 on_configure 订阅 `emergency_stop`（控制器命名空间，即 `/lwr/emergency_stop`，`std_msgs/Bool`，depth 1），`update()` 中为真时先 `stopping(time); starting(time);` 再执行控制器的 update，与 ROS1 manager 的顺序相同。适用于所有派生控制器；在 Gazebo/FRIL 下也生效（ROS1 只有 FRI 节点有急停），见 lwr_hw NOTES 需人工确认 3。
 - **接口**：ROS2 字段名须小写，`CartesianImpedancePoint` 的 `x_FRI/k_FRI/d_FRI/f_FRI` → `x_fri/k_fri/d_fri/f_fri`；`Header` → `std_msgs/Header`；删除 `PoseRPY.msg` 中无效的 `#include` 行。
 - **撤回的前次移植改动**：CartesianImpedanceController 取 7 个关节句柄（ROS1 为 6）、`set_command` 服务回调转发指令（ROS1 为空实现），均恢复 ROS1 行为；`package.xml` 中的 `<test_depend>` 已删除。
 - **构建**：catkin → ament_cmake + rosidl；单一插件库 `lwr_controllers_plugins`；依赖 lwr_hw（ROS1 亦依赖；arm_state_controller.h 引入 `lwr_hw_fri.hpp`、FRI 头）。
@@ -55,14 +56,16 @@ launch 参数 controller（默认 `joint_position_trajectoy_controller`，原文
 
 ## 需人工确认
 1. **消息字段改名**：`lwr_controllers/msg/CartesianImpedancePoint` 字段 `*_FRI` → `*_fri`（ROS2 命名规则强制）。发布该消息的外部节点需同步改名。
-2. **回调锁**（ros2_adapter.h / KinematicChainControllerBase.h）：`update()` 与订阅回调共用一把阻塞互斥锁，回调执行期间（含日志、数组分配）控制更新会等待。ROS1 无锁但有数据竞争。建议改为实时缓冲区传递指令；涉及控制时序，未擅自改。
+2. **回调与 update 的并发**：已按 ROS1 去掉锁，回调与 `update()` 并发访问控制器成员（ROS1 相同的数据竞争，如多元素的期望位姿可能在一个周期内被部分更新）。ROS1 中部分控制器（multi_task_priority_inverse_kinematics、backstepping、minimum_effort、dynamic_sliding_mode 等）在 update 末尾调用 `ros::spinOnce()`；ROS2 删除（回调由 controller_manager 的 executor 处理），因此回调不再可能在 update 线程上执行，命令进入算法的周期边界可能不同，未测得延迟。不建议在 update 内 spin。
 3. **stiffness_trajectory_controller**：ROS1 controllers.yaml 中的刚度轨迹控制器依赖刚度元数据关节的 PositionJointInterface（ROS1 实际上把刚度句柄注册在 EffortJointInterface，无法启动）；ROS2 未提供，需要时应基于 `stiffness` 指令接口另行实现。
 4. **pose 消息转换**：`tf::poseMsgToKDL` 等改为 ros2_adapter.h 中的等价实现（四元数/向量逐分量），请在用到 CartesianImpedanceController 时复核坐标约定。
 5. **实验室代码中的疑似缺陷（按规则原样保留）**：
    - `one_task_inverse_kinematics.cpp`：`float init_tip[]={};`、`float des_tip[]={};` 为零长数组却写入 3 个元素（栈越界写，未定义行为）。
    - `cartesian_impedance_controller.cpp`：只取 6 个关节句柄（ROS1 原样），实验室的 `/velocity_ee` 计算按 7 关节：第 7 关节角恒为 0、`vel_jnt_(6)` 未初始化，发布的末端速度不可信。
    - `joint_impedance_controller.cpp`：`update()` 每周期 7 次 `RCLCPP_INFO`（ROS1 为 `ROS_INFO`），加上方向分量的 3 次输出，实时循环内日志量大。
-6. **joint_impedance_controller 的 q_start_**：ROS1 在加载时读取，ROS2 在第一次激活时读取；`K_joint`、`D_joint` 全为 0 时零空间项与 q_start_ 无关。
+6. **适配层新增分支**（KinematicChainControllerBase.h）：`period <= 0` 时 update 直接返回（ROS1 控制器无此跳过，正常运行周期为正）；stopping 之后适配层把 effort 指令写 0 并释放句柄（ROS1 空 stopping 不写指令；硬件 doSwitch 本身也清附加力矩）。未验证切换周期的写入内容。
+7. **InverseDynamicsController 的 n_dof_**：ROS1 构造函数与 init 均未初始化 `n_dof_`（读取未初始化值）；ROS2 在 configure 中赋值 `n_dof_ = kdl_chain_.getNrOfJoints()`。这是非 API 改动，未回退为未初始化读取；如实验室使用该控制器，应先记录 ROS1 部署二进制的实际维数。
+8. **joint_impedance_controller 的 q_start_**：ROS1 在加载时读取，ROS2 在第一次激活时读取；`K_joint`、`D_joint` 全为 0 时零空间项与 q_start_ 无关。
 
 ## 编译、运行与测试
 ```bash

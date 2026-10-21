@@ -42,3 +42,9 @@ __pycache__/
 .cache/
 *.swp
 *~
+
+# Force sensor calibration data (lab-local); only the model loaded by tool_comp_ros.py is tracked
+sriforcesensor/src/ANN/Previous calibration/
+sriforcesensor/src/ANN/*.csv
+sriforcesensor/src/ANN/*.sav
+!sriforcesensor/src/ANN/realProbe.sav

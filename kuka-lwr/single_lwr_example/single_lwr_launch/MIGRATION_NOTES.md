@@ -56,7 +56,7 @@ launch 参数 robot_name、use_lwr_sim、lwr_powered、port、ip、file、t1_lim
 
 ## 需人工确认
 1. **tool launch + load_moveit**：ROS1 move_group 读取全局 /robot_description（tool 描述，无 `box`），而 SRDF 链以 `box` 为基座，该组合在 ROS1 中无法规划；ROS2 move_group.launch.py 按 `robot_name` 展开 single_lwr_robot，未模拟此差异。
-2. **真机控制频率**：`update_rate` 默认 500 Hz，对应随包 KRL 的 `friOpen(2)`；如现场 KRL 周期不同请在命令行指定。
+2. **真机控制频率**：`update_rate` 默认 500 Hz，对应随包 KRL 的 `friOpen(2)`；如现场 KRL 周期不同请在命令行指定。该值同时传给 FRI 硬件，与机器人采样周期相差超过 1% 时拒绝激活（见 lwr_hw 的 NOTES 需人工确认 2）。
 3. **Gazebo GUI（WSL）**：本机 GUI 可能因 `Ogre::UnimplementedException (GL3PlusTextureGpu::copyTo)` 退出并带走仿真服务端；与本包代码无关。
 4. **spawner 生命周期**：ROS1 spawner 常驻，退出时卸载控制器；Humble spawner 加载完即退出。
 

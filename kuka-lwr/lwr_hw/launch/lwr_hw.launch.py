@@ -19,6 +19,7 @@ def generate_launch_description():
         ' fri_port:=', LaunchConfiguration('port'),
         ' fri_ip:=', LaunchConfiguration('ip'),
         ' fri_init_file:=', LaunchConfiguration('file_with_path'),
+        ' controller_update_rate:=', LaunchConfiguration('update_rate'),
         ' ', LaunchConfiguration('xacro_args')]), value_type=str)
     return LaunchDescription([
         # LAUNCH INTERFACE

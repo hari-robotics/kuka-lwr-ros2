@@ -10,6 +10,7 @@
 #include "lwr_controllers/msg/cartesian_impedance_point.hpp"
 //	Header Files
 #include "../include/ultrasound_trajectory/smooth_traj.h"
+#include "../include/ultrasound_trajectory/ros_rate.h"
 //	Eigen lib
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -123,7 +124,7 @@ class UltrasoundTrajNode{
         }    
         
         
-        rclcpp::Rate loop_rate(100);
+        ultrasound_trajectory::RosRate loop_rate(nh, 100);
         if(i <= T * SubSteps){
             RCLCPP_INFO(nh->get_logger(), "ee_position_x: %f", ee_position_x);
             RCLCPP_INFO(nh->get_logger(), "ee_position_y: %f", ee_position_y);

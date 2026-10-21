@@ -19,6 +19,7 @@
 #include "lwr_controllers/msg/cartesian_impedance_point.hpp"
 //	Header Files
 #include "../include/ultrasound_trajectory/smooth_traj.h"
+#include "../include/ultrasound_trajectory/ros_rate.h"
 #include "../include/ultrasound_trajectory/pseudo_inverse.h"
 //	Eigen lib
 #include <Eigen/Core>
@@ -194,7 +195,7 @@ public:
 
 
 	void applyImpedanceControl() {
-	    rclcpp::Rate loop_rate(100);	// 100 Hz
+	    ultrasound_trajectory::RosRate loop_rate(nh, 100);	// 100 Hz
 		RCLCPP_INFO (nh->get_logger(), "IMPEDANCE CONTROL");   
 
 		if (i <= T * SubSteps)
@@ -244,7 +245,7 @@ public:
 		}
 	
 	void applyForceControl() {
-		rclcpp::Rate loop_rate(100);	
+		ultrasound_trajectory::RosRate loop_rate(nh, 100);	
 				if (force_control_executed) {
 				state_control=IMPEDANCE_CONTROL;
 				}

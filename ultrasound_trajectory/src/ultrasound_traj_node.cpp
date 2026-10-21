@@ -17,6 +17,7 @@
 #include "lwr_controllers/msg/cartesian_impedance_point.hpp"
 //	Header Files
 #include "../include/ultrasound_trajectory/smooth_traj.h"
+#include "../include/ultrasound_trajectory/ros_rate.h"
 #include "../include/ultrasound_trajectory/pseudo_inverse.h"
 //	Eigen lib
 #include <Eigen/Core>
@@ -241,7 +242,7 @@ public:
 */
 ////////////////		Pi to Pf SMOOTH TRAJECTORY (T=5; SubSteps=100: OK)
 //		RPY are kept the same as in initial position
-		rclcpp::Rate loop_rate(100);	// 100 Hz 
+		ultrasound_trajectory::RosRate loop_rate(nh, 100);	// 100 Hz 
 
 		if (i <= T*SubSteps){	//	5 seconds INITIALIZATION PHASE
 			zf = zi - 0.09;

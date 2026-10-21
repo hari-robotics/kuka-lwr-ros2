@@ -5,7 +5,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 
 
-def get_config(t1_limits=False, with_description=True):
+def get_config(t1_limits=False, with_description=True, fake_execution=False):
     package = Path(get_package_share_directory('single_lwr_moveit'))
     robot = Path(get_package_share_directory('single_lwr_robot'))
     load = lambda name: yaml.safe_load((package / 'config' / name).read_text())
@@ -36,7 +36,19 @@ def get_config(t1_limits=False, with_description=True):
               'publish_robot_description_semantic': True,
               'publish_planning_scene': True, 'publish_geometry_updates': True,
               'publish_state_updates': True, 'publish_transforms_updates': True}
-    result.update(load('controllers.yaml'))
+    if fake_execution:
+        # ROS 1 fake_moveit_controller_manager.launch.xml: MoveItFakeControllerManager with
+        # fake_controllers.yaml. MoveIt 2 (Humble) has no fake controller manager; the same
+        # controllers are FollowJointTrajectory controllers under /move_group, served by the
+        # ros2_control mock hardware of demo.launch.py and never by the robot controllers.
+        fake = load('fake_controllers.yaml')['controller_list']
+        names = ['/move_group/' + controller['name'] for controller in fake]
+        result['moveit_controller_manager'] = 'moveit_simple_controller_manager/MoveItSimpleControllerManager'
+        result['moveit_simple_controller_manager'] = {'controller_names': names, **{
+            name: {'action_ns': 'follow_joint_trajectory', 'type': 'FollowJointTrajectory', 'default': True,
+                   'joints': controller['joints']} for name, controller in zip(names, fake)}}
+    else:
+        result.update(load('controllers.yaml'))
     if with_description:
         # planning_context.launch with load_robot_description:=true
         result['robot_description'] = xacro.process_file(str(robot / 'robot/single_lwr_robot.urdf.xacro'),

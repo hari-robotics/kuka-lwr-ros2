@@ -89,7 +89,7 @@ public:
 
   hardware_interface::return_type write(const rclcpp::Time &, const rclcpp::Duration &period) override
   {
-    pollEmergencyStop();
+    // ROS 1 lwr_hw_fril_node had no e-stop subscription (FRI node only)
     if (!enforceLimits(period)) return hardware_interface::return_type::ERROR;
 
     // ensure the robot is powered and it is in control mode, almost like the isMachineOk() of Standford

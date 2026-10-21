@@ -1,0 +1,22 @@
+Packages necessary:
+- cartesian_position_node
+- kuka_teleop
+- single_lwr_example with single_lwr_tool.launch file
+- sigma
+
+
+
+in one terminal per command:
+
+> roscore
+
+> rosrun sigma master
+Wait for initialization of Sigma7
+
+> roslaunch single_lwr_launch single_lwr_tool.launch 
+For Simulation
+
+> rosrun cartesian_position_node cartesian_position_node /lwr/joint_states
+Node to compute forward kinematics
+
+> rosrun kuka_teleop kuka_teleop.py

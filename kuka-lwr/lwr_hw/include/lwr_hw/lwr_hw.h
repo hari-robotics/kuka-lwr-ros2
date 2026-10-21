@@ -142,9 +142,10 @@ protected:
   // ROS 1 "semantic zero" of doSwitch(): command the measured pose and zero effort,
   // and reset the position limit handles.
   void semanticZero();
-  // TODO(ros2-migration): ROS 1 reset the controllers from the node main loop while
-  // /<name>/emergency_stop was true; ros2_control has no hardware-side controller
-  // reset, so the commands are held at the measured pose instead.
+  // TODO(ros2-migration): ROS 1 reset the controllers from the FRI node main loop while
+  // /<name>/emergency_stop was true. The lwr_controllers restart themselves on the same topic
+  // (KinematicChainControllerBase); controllers that cannot be restarted from here
+  // (joint_trajectory_controller, ...) are held by commanding the measured pose (FRI only).
   void pollEmergencyStop();
   bool emergencyStopped() const {return emergency_stop_;}
 
@@ -169,6 +170,7 @@ protected:
   std_msgs::msg::Float64MultiArray msg_estExtTrq_; // ADDED 10.22
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr emergency_stop_sub_;
   bool emergency_stop_ = false;
+  bool emergency_stop_handled_ = false;
 };
 }
 #endif

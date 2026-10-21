@@ -7,7 +7,7 @@
       type: joint_state_broadcaster/JointStateBroadcaster
     joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
-    # kuka_controllers (kuka_ws/src/kuka/kuka_controllers) is not part of this workspace
+    # kuka_controllers: kuka-lwr/kuka_controllers (ROS 1 kuka_ws/src/kuka/kuka_controllers)
     hierarchical_controller:
       type: kuka_controllers/HierarchicalController
     basic_joint_controller:
@@ -120,7 +120,7 @@
     robot_name: lwr
     root_name: lwr_base_link
     tip_name: lwr_7_link
-    publish_cartesian_pose: false
+    publish_cartesian_pose: true
 /lwr/multi_task_priority_inverse_kinematics:
   ros__parameters:
     root_name: lwr_base_link

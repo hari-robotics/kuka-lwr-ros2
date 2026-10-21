@@ -13,6 +13,8 @@
 #include <kdl/jntarrayacc.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <lwr_controllers/ros2_adapter.h>
+#include <std_msgs/msg/bool.hpp>
+#include <atomic>
 #include <vector>
 #include <stdexcept>
 
@@ -36,8 +38,15 @@ template<typename Mode> class ControllerAdapter: public controller_interface::Co
 public:
   controller_interface::CallbackReturn on_init() override {return controller_interface::CallbackReturn::SUCCESS;}
   controller_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State &) override {
-    nh_=NodeParameters(get_node(),&callback_mutex_);
+    nh_=NodeParameters(get_node());
     joint_names_.clear();joint_handles_.clear();
+    // ROS 1 lwr_hw_fri_node subscribed /<name>/emergency_stop and, while it was true, called
+    // manager.update(now, period, resetControllers = true): every running controller was
+    // restarted (stopping() + starting()) before its update in each cycle. ros2_control has
+    // no hardware-side controller reset, so the controllers observe the same topic.
+    if(!emergency_stop_sub_)
+      emergency_stop_sub_=get_node()->create_subscription<std_msgs::msg::Bool>("emergency_stop",1,
+        [this](const std_msgs::msg::Bool::ConstSharedPtr e_stop_msg){emergency_stop_=e_stop_msg->data;});
     try {return configure(nh_) ? controller_interface::CallbackReturn::SUCCESS : controller_interface::CallbackReturn::ERROR;}
     catch(const std::exception &e){RCLCPP_ERROR(get_node()->get_logger(),"Configuration failed: %s",e.what());return controller_interface::CallbackReturn::ERROR;}
   }
@@ -54,7 +63,6 @@ public:
     return config;
   }
   controller_interface::CallbackReturn on_activate(const rclcpp_lifecycle::State &) override {
-    std::lock_guard<std::mutex> lock(callback_mutex_);
     try {
       for(auto &handle:joint_handles_) {
         handle.position=find_state(handle.name+"/position");
@@ -67,7 +75,6 @@ public:
     }catch(const std::exception &e){RCLCPP_ERROR(get_node()->get_logger(),"Activation failed: %s",e.what());return controller_interface::CallbackReturn::ERROR;}
   }
   controller_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State &) override {
-    std::lock_guard<std::mutex> lock(callback_mutex_);
     stopping(get_node()->now());
     for(auto &handle:joint_handles_) {
       if(handle.command && std::string(Mode::command)=="effort") handle.command->set_value(0.0);
@@ -76,9 +83,13 @@ public:
     return controller_interface::CallbackReturn::SUCCESS;
   }
   controller_interface::return_type update(const rclcpp::Time &time,const rclcpp::Duration &period) override {
-    std::lock_guard<std::mutex> lock(callback_mutex_);
-    if(period.nanoseconds()<=0) return controller_interface::return_type::OK;
-    try {update_command(time,period);return controller_interface::return_type::OK;}
+    // ROS 1 ran subscription callbacks (AsyncSpinner) concurrently with update() without a
+    // lock; the executor thread does the same here.
+    try {
+      // ROS 1 controller_manager::update(..., reset_controllers): stopRequest + startRequest
+      if(emergency_stop_.load()) {stopping(time);starting(time);}
+      if(period.nanoseconds()<=0) return controller_interface::return_type::OK;
+      update_command(time,period);return controller_interface::return_type::OK;}
     catch(const std::exception &e){RCLCPP_ERROR(get_node()->get_logger(),"Update failed: %s",e.what());return controller_interface::return_type::ERROR;}
   }
   virtual bool configure(NodeParameters &node)=0;
@@ -87,7 +98,8 @@ public:
   virtual void update_command(const rclcpp::Time &,const rclcpp::Duration &)=0;
 protected:
   NodeParameters nh_;
-  std::mutex callback_mutex_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr emergency_stop_sub_;
+  std::atomic<bool> emergency_stop_{false};
   std::vector<std::string> joint_names_;
   std::vector<JointHandle> joint_handles_;
   hardware_interface::LoanedStateInterface *find_state(const std::string &name) {

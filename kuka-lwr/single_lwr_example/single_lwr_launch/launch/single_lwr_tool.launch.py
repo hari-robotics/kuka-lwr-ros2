@@ -71,7 +71,8 @@ def generate_launch_description():
 
         # ROS 2: ROS 1 ran the real robot at 1/getSampleTime(); ros2_control needs the rate
         # at launch. 500 Hz matches friOpen(2) of the bundled KRL.
-        DeclareLaunchArgument('update_rate', default_value='500'),
+        # Actual setup 100 Hz (Lab configuration)
+        DeclareLaunchArgument('update_rate', default_value='100'),
 
         # LAUNCH IMPLEMENTATION
 

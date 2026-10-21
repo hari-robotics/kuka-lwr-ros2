@@ -1,0 +1,20 @@
+# Fixed end-effector(flange) -> probe calibration for ultrasound_probe_motion.
+# Loaded via <rosparam file="..." command="load"/> in launch/probe_motion.launch,
+# read back with pnh.param<double>(...) at node startup, and held constant for
+# the node's lifetime (no dynamic reconfigure).
+#
+# Transform composition (flange frame E -> probe frame P):
+#   T_E_P = Trans_z(probe_length) * Rot_z(probe_z_rotation_deg) * Trans_y(probe_y_offset)
+#
+# i.e. rotate by probe_z_rotation_deg about the shared z-axis, then translate
+# by probe_y_offset along the ROTATED y-axis, then add the nominal
+# probe_length translation along the (shared) z-axis.
+#
+# ROS 2: node parameter file (ROS 1 flat rosparam file); "/**" applies it to the node that
+# loads it (probe_relative_motion_node, probe_scan_motion_node, probe_incremental_*_node).
+
+/**:
+  ros__parameters:
+    probe_length: 0.252           # [m] nominal probe length along EE's own +z axis (flange-plane normal)
+    probe_y_offset: 0.00775       # [m] as-built origin offset along the probe's own (rotated) +y axis
+    probe_z_rotation_deg: -7.5     # [deg] as-built rotation of the probe frame about the shared z-axis

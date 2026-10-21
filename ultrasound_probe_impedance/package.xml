@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>ultrasound_probe_impedance</name>
+  <version>0.0.0</version>
+  <description>
+    Drives the KUKA LWR Cartesian impedance controller from relative 6-DoF
+    motions expressed in the ultrasound probe's own frame, converting them
+    to absolute base-frame lwr_controllers/CartesianImpedancePoint commands
+    using the fixed end-effector-to-probe calibration transform from
+    ultrasound_probe_motion, and optionally closing a z-axis contact-force
+    loop the same way ultrasound_trajectory's ee_incremental_impedance_node
+    does.
+  </description>
+  <maintainer email="u4267050275@gmail.com">nearlab</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>lwr_controllers</depend>
+  <depend>eigen</depend>
+
+  <!-- launch files load ultrasound_probe_motion/config/probe_calibration.yaml -->
+  <exec_depend>ultrasound_probe_motion</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -33,6 +33,7 @@ install(TARGETS ${PROJECT_NAME}_plugins EXPORT export_lwr_controllers
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS scripts/stiffness_demo.py DESTINATION lib/${PROJECT_NAME})
 ament_export_targets(export_lwr_controllers HAS_LIBRARY_TARGET)
 ament_export_dependencies(${controller_dependencies} rosidl_default_runtime Eigen3)
 ament_package()

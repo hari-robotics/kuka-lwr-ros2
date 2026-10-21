@@ -95,7 +95,7 @@ DEF ros_control( )
 BAS (#tool,1 )
 
 ;Specify ip and port
-retVal = friSetup("192.168.10.1", 49938, 49938)
+retVal = friSetup("192.168.0.150", 49939, 49939)
 
 ;Open FRI with datarate 2 msec
 retVal=friOpen(2)

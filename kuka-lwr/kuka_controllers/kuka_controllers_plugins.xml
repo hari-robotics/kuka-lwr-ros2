@@ -1,0 +1,18 @@
+<library path="kuka_controllers">
+
+  <class name="kuka_controllers/BasicJointController" type="kuka_controllers::BasicJointController" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Basic Joint Proportional controller
+    </description>
+  </class>
+  <class name="kuka_controllers/HierarchicalController" type="kuka_controllers::HierarchicalController" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Hierarchical Controller with RCM contraint enforcement
+    </description>
+  </class>
+  <class name="kuka_controllers/VeryBasicJointController" type="kuka_controllers::VeryBasicJointController" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Very Basic Joint Proportional controller
+    </description>
+  </class>
+</library>

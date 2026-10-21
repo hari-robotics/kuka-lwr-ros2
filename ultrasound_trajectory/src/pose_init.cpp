@@ -8,6 +8,7 @@
  ************************************************************************/
 
 #include "rclcpp/rclcpp.hpp"
+#include "../include/ultrasound_trajectory/ros_rate.h"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 #include "control_msgs/msg/joint_trajectory_controller_state.hpp"
@@ -175,7 +176,7 @@ public:
             });
 
         RCLCPP_INFO(nh_->get_logger(), "[pose_init] Waiting for joint_trajectory_controller to subscribe ...");
-        rclcpp::Rate wait_rate(10);   // 10 Hz poll — low CPU cost
+        ultrasound_trajectory::RosRate wait_rate(nh_, 10);   // 10 Hz poll — low CPU cost
         while (rclcpp::ok() && (pub_joint_traj_->get_subscription_count() == 0 || !jtc_state_received_))
         {
             rclcpp::spin_some(nh_);

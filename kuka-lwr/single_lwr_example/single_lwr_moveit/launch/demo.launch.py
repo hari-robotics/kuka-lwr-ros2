@@ -1,8 +1,9 @@
 """ROS 2 port of demo.launch.
 
-MoveIt 2 (Humble) has no fake controller manager: the fake joint states of ROS 1
-(joint_state_publisher on /move_group/fake_controller_joint_states) come from a
-ros2_control mock_components/GenericSystem with joint_trajectory_controller instead.
+MoveIt 2 (Humble) has no fake controller manager: the ROS 1 fake controller
+(fake_full_lwr_controller, joint states on /move_group/fake_controller_joint_states) is a
+joint_trajectory_controller with that name on ros2_control mock_components/GenericSystem,
+with a controller manager in the /move_group namespace, separate from the robot (/lwr).
 """
 from pathlib import Path
 import importlib.util
@@ -11,7 +12,9 @@ import xml.etree.ElementTree as ET
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler
+from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription, LogInfo, OpaqueFunction,
+                            RegisterEventHandler, Shutdown)
+from launch.conditions import IfCondition
 from launch.event_handlers import OnShutdown
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -30,13 +33,15 @@ def _launch(context):
     control = ET.SubElement(description, 'ros2_control', name='LWR_demo', type='system')
     ET.SubElement(ET.SubElement(control, 'hardware'), 'plugin').text = 'mock_components/GenericSystem'
     config = yaml.safe_load((robot / 'config/controllers.yaml').read_text())
-    names = ('joint_state_controller', 'joint_trajectory_controller')
+    fake = yaml.safe_load((moveit / 'config/fake_controllers.yaml').read_text())['controller_list'][0]
+    # demo controller name -> robot controller whose configuration it uses
+    names = {'joint_state_controller': 'joint_state_controller', fake['name']: 'joint_trajectory_controller'}
     manager = config['/lwr/controller_manager']['ros__parameters']
-    demo_config = {'/lwr/controller_manager': {'ros__parameters': {
-        'update_rate': manager['update_rate'], **{name: manager[name] for name in names}}}}
-    for name in names:
-        demo_config['/lwr/' + name] = config['/lwr/' + name]
-    for name in config['/lwr/joint_trajectory_controller']['ros__parameters']['joints']:
+    demo_config = {'/move_group/controller_manager': {'ros__parameters': {
+        'update_rate': manager['update_rate'], **{name: manager[source] for name, source in names.items()}}}}
+    for name, source in names.items():
+        demo_config['/move_group/' + name] = config['/lwr/' + source]
+    for name in fake['joints']:
         joint = ET.SubElement(control, 'joint', name=name)
         ET.SubElement(joint, 'command_interface', name='position')
         position = ET.SubElement(joint, 'state_interface', name='position')
@@ -52,11 +57,13 @@ def _launch(context):
                  respawn=True, output='screen', parameters=[{'robot_description': description}]),
             # We do not have a robot connected, so publish fake joint states
             Node(name='joint_state_publisher', package='joint_state_publisher', executable='joint_state_publisher',
-                 parameters=[{'robot_description': description, 'source_list': ['/lwr/joint_states']}]),
-            Node(package='controller_manager', executable='ros2_control_node', namespace='lwr',
-                 parameters=[{'robot_description': description}, control_file], output='screen'),
+                 parameters=[{'robot_description': description,
+                              'source_list': ['/move_group/fake_controller_joint_states']}]),
+            Node(package='controller_manager', executable='ros2_control_node', namespace='move_group',
+                 parameters=[{'robot_description': description}, control_file], output='screen',
+                 remappings=[('/move_group/joint_states', '/move_group/fake_controller_joint_states')]),
             *[Node(package='controller_manager', executable='spawner', output='screen',
-                   arguments=[name, '-c', '/lwr/controller_manager', '--controller-manager-timeout', '60'])
+                   arguments=[name, '-c', '/move_group/controller_manager', '--controller-manager-timeout', '60'])
               for name in names],
             RegisterEventHandler(OnShutdown(on_shutdown=lambda event, context: Path(control_file).unlink(missing_ok=True)))]
 
@@ -65,10 +72,16 @@ def generate_launch_description():
     moveit = Path(get_package_share_directory('single_lwr_moveit')) / 'launch'
     return LaunchDescription([
         # By default, we do not start a database (it can be large)
-        # TODO(ros2-migration): the warehouse launch files (default_warehouse_db/warehouse) are not migrated
         DeclareLaunchArgument('db', default_value='false'),
         # By default, we are not in debug mode
         DeclareLaunchArgument('debug', default_value='false'),
+        # If database loading was enabled, start mongodb as well
+        # ROS 2: default_warehouse_db.launch is not migrated (MoveIt 2 Humble has no
+        # mongo_wrapper_ros.py); db:=true is refused instead of being ignored.
+        LogInfo(condition=IfCondition(LaunchConfiguration('db')),
+                msg='db:=true is not supported: the MoveIt warehouse database is not migrated to ROS 2'),
+        Shutdown(condition=IfCondition(LaunchConfiguration('db')),
+                 reason='db:=true is not supported (MoveIt warehouse database not migrated)'),
         OpaqueFunction(function=_launch),
         # Run the main MoveIt executable
         IncludeLaunchDescription(PythonLaunchDescriptionSource(str(moveit / 'move_group.launch.py')),

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>frame_grabber</name>
+  <version>0.0.0</version>
+  <description>The frame_grabber package</description>
+  <maintainer email="nearlab@todo.todo">nearlab</maintainer>
+  <license>TODO</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
