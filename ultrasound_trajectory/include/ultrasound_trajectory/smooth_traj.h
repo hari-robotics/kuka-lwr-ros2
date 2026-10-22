@@ -7,7 +7,7 @@
 
 using namespace std;
 
-double SmoothTraj(double Xi, double Xf, double T, int SubSteps, int i){
+inline double SmoothTraj(double Xi, double Xf, double T, int SubSteps, int i){
 	double t0 = 0;
 	double H = (Xf - Xi);
 	int A[] = { 0, 0, 0, 10, -15, 6 };
