@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>zeromq_sdk</name>
+  <version>0.0.0</version>
+  <description>Bridges ROS topics to ZeroMQ so the controllers Python environment runs without ROS</description>
+  <maintainer email="nearlab@todo.todo">nearlab</maintainer>
+  <license>TODO</license>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>lwr_controllers</exec_depend>
+  <exec_depend>python3-zmq</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
