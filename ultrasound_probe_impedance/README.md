@@ -117,9 +117,9 @@ executing), using quintic translation and quaternion-SLERP orientation.
 ## Build
 
 ```bash
-cd /home/wu/Documents/project/ROS/kuka_ws
-catkin_make --pkg ultrasound_probe_impedance
-source devel/setup.bash
+cd ~/kuka_ws
+colcon build --packages-select ultrasound_probe_impedance
+source install/setup.bash
 ```
 
 ## Run

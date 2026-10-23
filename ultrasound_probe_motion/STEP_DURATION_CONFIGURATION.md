@@ -182,9 +182,9 @@ When changing either duration, update all locations together.
    `controller_timeout_sec` greater than both durations plus any settling delay.
 5. Rebuild:
    ```bash
-   cd /home/wu/Documents/project/ROS/kuka_ws
-   catkin_make --pkg ultrasound_probe_motion ultrasound_vessel_reconstruction
-   source devel/setup.bash
+   cd ~/kuka_ws
+   colcon build --packages-select ultrasound_probe_motion
+   source install/setup.bash
    ```
 6. Relaunch the motion node (parameters are read only at startup):
    ```bash

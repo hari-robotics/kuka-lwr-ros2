@@ -80,10 +80,10 @@ Key parameters (all under the node's private namespace, see
 ### 1. Build
 
 ```bash
-cd ~/Documents/project/ROS/kuka_ws
-source /opt/ros/kinetic/setup.bash
-catkin_make --pkg ultrasound_trajectory
-source devel/setup.bash
+cd ~/kuka_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select ultrasound_trajectory
+source install/setup.bash
 ```
 
 ### 2. Bring up the robot (sim or hardware, as you already do)
