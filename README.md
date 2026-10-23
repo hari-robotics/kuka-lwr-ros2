@@ -12,7 +12,8 @@ The port follows the lab version in `kuka_ws/src/kuka-lwr`, `kuka_ws/src/ultraso
 | Real robot (FRI / KRC): connection, monitor → command mode, `/lwr/joint_states`, `cartesian_position_node`, `/est_ext_torque` | ✅ passed on the real KUKA LWR 4+ (2026-10-21, Tool 8) |
 | Real robot: `one_task_inverse_kinematics`, `ee_incremental_motion` | ✅ passed on the real robot |
 | Real robot: `cartesian_impedance_controller` (switch from `one_task_inverse_kinematics`, stiffness/damping commands via `stiffness_demo.py`) | ✅ passed on the real robot |
-| `sriforcesensor`, force control (`ultrasound_probe_impedance`), `frame_grabber` | ⏳ ported, built and checked without hardware; next milestone (real force sensor / frame grabber) |
+| `sriforcesensor` (`forcesensor`, `/Force`), `frame_grabber` (`cameratoROS_cropped.py`, `/frame_grabber/image_cropped_topic`) | ✅ passed with the real SRI force sensor and frame grabber |
+| Force control (`ultrasound_probe_impedance` with `tool_comp_ros.py` / `/Force_calibrated`) | ⏳ ported and checked in simulation (node interface); next milestone on the real robot |
 | Other dynamics controllers (`joint_impedance_controller`, torque-based controllers) | ⚠️ not validated: Gazebo does not simulate the KUKA joint/Cartesian impedance (interfaces only checked) |
 
 The migration tests live in the workspace-level `migration_tests/` directory (next to `src/`, not

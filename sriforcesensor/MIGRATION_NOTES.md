@@ -35,7 +35,7 @@
 无。
 
 ## 需人工确认
-1. **硬件实测**：只做了编译与无硬件启动检查。无传感器时：连接失败（"connect failed ... Force sensor connection failed"），随后 `ConfigSystem()` 向未连接的 socket 写入，进程因 SIGPIPE 退出——这是原通信代码的行为，ROS1 相同，未修改。需在连接传感器的机器上验证 `/Force` 数据。
+1. **硬件实测**：✅ 已在连接 SRI 力传感器的实机上验证，`forcesensor` 正常连接并发布 `/Force`。无传感器时连接失败（"connect failed ... Force sensor connection failed"），随后 `ConfigSystem()` 向未连接的 socket 写入，进程因 SIGPIPE 退出——这是原通信代码的行为，ROS1 相同，未修改。
 2. **ANN 脚本依赖**：`tool_comp_ros.py`、`tool_comp.py` 需要 scikit-learn、pandas、seaborn、matplotlib（ROS1 package.xml 同样未声明）；本机未安装 scikit-learn，`realProbe.sav` 是 pickle 的 sklearn 模型，需与训练时相近的 sklearn 版本才能加载。
 
 ## 编译、运行与测试
