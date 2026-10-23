@@ -11,7 +11,7 @@ foreach(dependency IN LISTS controller_dependencies)
   find_package(${dependency} REQUIRED)
 endforeach()
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/PoseRPY.msg" "msg/RPY.msg" "msg/MultiPriorityTask.msg" "msg/ArmState.msg"
+  "msg/PoseRPYStamped.msg" "msg/PoseRPY.msg" "msg/RPY.msg" "msg/MultiPriorityTask.msg" "msg/ArmState.msg"
   "msg/CartesianImpedancePoint.msg" "msg/Stiffness.msg" "srv/SetCartesianImpedanceCommand.srv"
   DEPENDENCIES std_msgs geometry_msgs sensor_msgs)
 add_library(${PROJECT_NAME}_plugins SHARED

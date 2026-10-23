@@ -1,7 +1,7 @@
 #include "sensor_msgs/msg/joint_state.hpp"
-#include "lwr_controllers/msg/pose_rpy.hpp"
+#include "lwr_controllers/msg/pose_rpy_stamped.hpp"
 #include "lwr_controllers/msg/rpy.hpp"
-#include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 //#include "geometry_msgs/msg/vector3.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <string>
@@ -40,10 +40,10 @@ class CartesianPositionNode{
 
 public:
 	CartesianPositionNode(rclcpp::Node::SharedPtr n, std::string subname): fk_(), n_(n){
-		tt_pub_ = n->create_publisher<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/tooltip",10);
-		ee_pub_ = n->create_publisher<lwr_controllers::msg::PoseRPY>("/cartesian_position/pose/end_effector",10);	
-		tt_vel_pub_ = n->create_publisher<geometry_msgs::msg::Twist>("/cartesian_position/vel/tooltip",10);
-		ee_vel_pub_ = n->create_publisher<geometry_msgs::msg::Twist>("/cartesian_position/vel/end_effector",10);	
+		tt_pub_ = n->create_publisher<lwr_controllers::msg::PoseRPYStamped>("/cartesian_position/pose/tooltip",10);
+		ee_pub_ = n->create_publisher<lwr_controllers::msg::PoseRPYStamped>("/cartesian_position/pose/end_effector",10);	
+		tt_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>("/cartesian_position/vel/tooltip",10);
+		ee_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>("/cartesian_position/vel/end_effector",10);	
 		sub_ = n->create_subscription<sensor_msgs::msg::JointState>(subname, 10, std::bind(&CartesianPositionNode::callback, this, std::placeholders::_1));
 
 		fk_.init(n);
@@ -53,7 +53,7 @@ public:
 
 	void callback(const sensor_msgs::msg::JointState::ConstSharedPtr msg)
 	{
-		
+		auto received_time = n_->now();
 		KDL::JntArray q(msg->position.size());
 		KDL::JntArray q_dot(msg->velocity.size());
 		KDL::Frame x;
@@ -95,19 +95,22 @@ public:
 		fk_.computeVel(q,q_dot,x_dot,d1,d2,d4); //comment JLF 2022-12-19
 
 
-		pose_.position.x = x.p.x();
-		pose_.position.y = x.p.y();
-		pose_.position.z = x.p.z();
-		x.M.GetRPY(pose_.orientation.roll,pose_.orientation.pitch, pose_.orientation.yaw);
+		pose_.pose.position.x = x.p.x();
+		pose_.pose.position.y = x.p.y();
+		pose_.pose.position.z = x.p.z();
+		x.M.GetRPY(pose_.pose.orientation.roll,pose_.pose.orientation.pitch, pose_.pose.orientation.yaw);
 /* 
-		vel_.linear.x = x_dot.at(0);
-		vel_.linear.y = x_dot.at(1);
-		vel_.linear.z = x_dot.at(2);
-		vel_.angular.x = x_dot.at(3);
-		vel_.angular.y = x_dot.at(4);
-		vel_.angular.z = x_dot.at(5);
+		vel_.twist.linear.x = x_dot.at(0);
+		vel_.twist.linear.y = x_dot.at(1);
+		vel_.twist.linear.z = x_dot.at(2);
+		vel_.twist.angular.x = x_dot.at(3);
+		vel_.twist.angular.y = x_dot.at(4);
+		vel_.twist.angular.z = x_dot.at(5);
 */
 			
+		// Add timestamps for time alignment (Zihao 2026-10-23)
+		pose_.header.stamp = received_time;
+		vel_.header.stamp = received_time;
 
 		ee_pub_->publish(pose_);
 		ee_vel_pub_->publish(vel_); //comment JLF 2022-12-19
@@ -122,29 +125,34 @@ public:
 		x.p[2]=x.p[2]+tip[2];
 		std::cout << x.p[0]<< " "<<x.p[1]<< " "<<x.p[2]<<std::endl<<std::endl;
 		std::cout << tip[0]<< " "<<tip[1]<< " "<<tip[2]<<std::endl<<std::endl;
-		pose_.position.x = x.p.x();
-		pose_.position.y = x.p.y();
-		pose_.position.z = x.p.z();
+		pose_.pose.position.x = x.p.x();
+		pose_.pose.position.y = x.p.y();
+		pose_.pose.position.z = x.p.z();
 
 		fk_.computeVel(q,q_dot,x_dot,d1,d2,d3);
 
 
 
-		vel_.linear.x = x_dot.at(0);
-		vel_.linear.y = x_dot.at(1);
-		vel_.linear.z = x_dot.at(2);	
-		vel_.angular.x = x_dot.at(3);
-		vel_.angular.y = x_dot.at(4);
-		vel_.angular.z = x_dot.at(5);
+		vel_.twist.linear.x = x_dot.at(0);
+		vel_.twist.linear.y = x_dot.at(1);
+		vel_.twist.linear.z = x_dot.at(2);
+		vel_.twist.angular.x = x_dot.at(3);
+		vel_.twist.angular.y = x_dot.at(4);
+		vel_.twist.angular.z = x_dot.at(5);
 
 		double a = 0.7;
-		vel_.linear.x = a*vel_.linear.x + (1-a)*vel_previous_.linear.x;
-		vel_.linear.y = a*vel_.linear.y + (1-a)*vel_previous_.linear.y;
-		vel_.linear.z = a*vel_.linear.z + (1-a)*vel_previous_.linear.z;
+		vel_.twist.linear.x = a*vel_.twist.linear.x + (1-a)*vel_previous_.twist.linear.x;
+		vel_.twist.linear.y = a*vel_.twist.linear.y + (1-a)*vel_previous_.twist.linear.y;
+		vel_.twist.linear.z = a*vel_.twist.linear.z + (1-a)*vel_previous_.twist.linear.z;
 
 		vel_previous_ = vel_;
 
-		RCLCPP_INFO(n_->get_logger(), "Computed forward kinematics: %f %f %f",vel_.linear.x, vel_.linear.y, vel_.linear.z); //comment JLF 2022-12-19
+		RCLCPP_INFO(n_->get_logger(), "Computed forward kinematics: %f %f %f",vel_.twist.linear.x, vel_.twist.linear.y, vel_.twist.linear.z); //comment JLF 2022-12-19
+
+		// Add timestamps for time alignment (Zihao 2026-10-23)
+		pose_.header.stamp = received_time;
+		vel_.header.stamp = received_time;
+
 		tt_pub_->publish(pose_); 
 		tt_vel_pub_->publish(vel_);
 	}
@@ -154,12 +162,12 @@ private:
 	
 
 	rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr sub_;
-	rclcpp::Publisher<lwr_controllers::msg::PoseRPY>::SharedPtr tt_pub_, ee_pub_;
-	rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr tt_vel_pub_, ee_vel_pub_;
+	rclcpp::Publisher<lwr_controllers::msg::PoseRPYStamped>::SharedPtr tt_pub_, ee_pub_;
+	rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr tt_vel_pub_, ee_vel_pub_;
 	sensor_msgs::msg::JointState js_;
-	lwr_controllers::msg::PoseRPY pose_;
-	geometry_msgs::msg::Twist vel_;
-	geometry_msgs::msg::Twist vel_previous_;
+	lwr_controllers::msg::PoseRPYStamped pose_;
+	geometry_msgs::msg::TwistStamped vel_;
+	geometry_msgs::msg::TwistStamped vel_previous_;
 	ForwardKinematics fk_;
 	rclcpp::Node::SharedPtr n_;
 
