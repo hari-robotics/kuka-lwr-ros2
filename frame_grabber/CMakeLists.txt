@@ -5,6 +5,7 @@ find_package(ament_cmake REQUIRED)
 
 # ROS 1 ran the scripts with rosrun from the source tree (executable files); ROS 2 installs them
 install(PROGRAMS
+  src/cameratoROS_convex.py
   src/cameratoROS.py
   src/cameratoROS_cropped.py
   DESTINATION lib/${PROJECT_NAME})

@@ -25,7 +25,7 @@ need confirmation before using the real robot are listed in each package's `MIGR
 Same layout as the ROS 1 lab workspace (`kuka_ws/src`); the KUKA packages of `kuka_ws/src/kuka` used by
 the lab tutorial are under `kuka-lwr/`:
 ```bash
-├── cartesian_position_node        # Cartesian pose/velocity of flange and tooltip
+├── cartesian_position_node        # Cartesian pose/velocity of flange and tooltip (tooltip selected from config/tool_configuration.yaml)
 ├── frame_grabber                  # camera / frame grabber image publisher (ultrasound image)
 ├── kuka-lwr
 │   ├── kuka_controllers           # hierarchical (RCM) / basic joint controllers (kuka_ws/src/kuka/kuka_controllers)
@@ -40,7 +40,7 @@ the lab tutorial are under `kuka-lwr/`:
 ├── sriforcesensor                 # SRI 6-axis force sensor driver (TCP) and tool gravity compensation
 ├── ultrasound_probe_impedance     # probe-frame motion and z force control on the Cartesian impedance controller
 ├── ultrasound_probe_motion        # probe-frame motion on one_task_inverse_kinematics, /probe_step action, probe calibration
-└── ultrasound_trajectory          # trajectory / motion nodes
+└── ultrasound_trajectory          # trajectory / motion nodes, drag demonstration
 ```
 
 ## Installation
@@ -88,19 +88,41 @@ in both `colcon.meta` and `.clangd`.
 `single_lwr_tool.launch`; its launch arguments and defaults are the ROS 1 ones:
 `robot_name:=single_lwr_robot use_lwr_sim:=true lwr_powered:=false port:=49938 ip:=192.168.10.2
 t1_limits:=false controllers:=one_task_inverse_kinematics stopped_controllers:=gravity_compensation_controller
-load_moveit:=false use_rviz:=false gui:=true`, plus `update_rate:=500` for the real robot. It
-always starts `cartesian_position_node`, as in ROS 1.
+load_moveit:=false use_rviz:=false gui:=true`, plus `update_rate:=100` for the real robot. It
+always starts `cartesian_position_node`, as in ROS 1, by including
+`cartesian_position_node/launch/cartesian_position.launch.py`.
 
 Controller gains are configured in
 `kuka-lwr/single_lwr_example/single_lwr_robot/config/controllers.yaml`; the chain frames are
 in `config/hw_interface.yaml`. As in ROS 1, controllers run at the Gazebo step in
 simulation (`update_rate: 1000`, 1 ms) and at the robot sample rate on the real
-robot: pass `update_rate:=<Hz>` (default 500, matching KRL `friOpen(2)`).
+robot: pass `update_rate:=<Hz>` (default 100, the lab setup; it must match the KRL `friOpen()` period).
 When both `use_lwr_sim` and `lwr_powered` are false, bringup only publishes the
 model and joint states for display, as in ROS 1.
 
 Porting details and the items that need confirmation are in each package's
 `MIGRATION_NOTES.md`.
+
+### Tooltip
+`/cartesian_position/pose/tooltip` and `/cartesian_position/vel/tooltip` use the tooltip position in the
+end-effector frame (`lwr_7_link`, in mm) from `cartesian_position_node/config/tool_configuration.yaml`:
+
+| Entry | x, y, z [mm] | Use |
+|---|---|---|
+| `pin_cali_tooltip` | 0.980, 0.018, 128.706 | calibrated pin, default of `cartesian_position.launch.py` |
+| `needle_cali_tooltip` | -0.659, 2.619, 196.819 | calibrated needle |
+| `sim_tooltip` | 0, 0, 252 | previous hard-coded tool length, default of the node when started without the launch file |
+
+Select the entry with the `tooltip` argument. It is declared by `cartesian_position.launch.py` and also
+works from the launch files that include it:
+```bash
+ros2 launch single_lwr_launch single_lwr_tool.launch.py tooltip:=needle_cali_tooltip
+```
+An unknown entry stops the node with an error. The node reads the installed copy of the file, so rebuild
+`cartesian_position_node` after editing it. `/cartesian_position/pose/end_effector` is the flange and does
+not depend on the tooltip. The `tcp` frame on TF comes from the URDF (198.5 mm along the flange z axis) and
+does not follow this setting. TF is also updated at only about 10 Hz (`joint_state_publisher` default
+rate), so use the `/cartesian_position` topics for time-aligned poses.
 
 ## Run with gazebo simulator
 To launch gazebo simulator with rviz:
@@ -184,6 +206,28 @@ ros2 run lwr_controllers stiffness_demo.py   # holds the current pose and steps 
 The switch makes the KRL program stop FRI, change `$stiffness.strategy` to 20 (CARTESIAN_IMPEDANCE)
 and start FRI again; the controller then holds the current pose with K = 800/800/200 N/m, 100 Nm/rad, D = 0.8.
 The `ros2 control ...` verbs below need `ros-humble-ros2controlcli`; the service calls above work without it.
+
+### Drag demonstration and ultrasound recording (real robot)
+`drag_demonstration.py` commands the current end-effector pose with a low stiffness (20) on the Cartesian
+impedance controller, so the arm can be moved by hand. Launch with the default controller, switch to
+`cartesian_impedance_controller` as described in
+[Cartesian impedance control](#cartesian-impedance-control-lab-tutorial-real-robot), then start the drag
+demonstration. Each command runs in its own terminal:
+```bash
+ros2 launch single_lwr_launch single_lwr_tool.launch.py use_lwr_sim:=false lwr_powered:=true
+# load, configure and switch to cartesian_impedance_controller here
+ros2 run ultrasound_trajectory drag_demonstration.py
+ros2 run frame_grabber cameratoROS_cropped.py --ros-args -r /frame_grabber/image_cropped_topic:=/us_image
+```
+`cameratoROS_cropped.py` crops the frame to `frame[95:545, 410:860]`, resizes it to 480x480 and publishes
+at 10 Hz. The calibration, validation and dataset scripts in `controller/src/utils` subscribe to
+`/us_image`, hence the remap. `rbag_record.sh` next to `kuka_ws` records
+`/frame_grabber/image_cropped_topic` and `/cartesian_position/pose/end_effector`: start the frame grabber
+without the remap when recording a bag, and add
+`--remap /frame_grabber/image_cropped_topic:=/us_image` to `ros2 bag play` for the scripts above.
+
+To choose the crop window, run `ros2 run frame_grabber cameratoROS.py`: a left click in the `frame` window
+shows the pixel index `frame[row, col]`, in the terminal and on the image.
 
 ### Force control (lab tutorial, real robot)
 ROS 2 commands for the tutorial steps (teach pendant steps unchanged; Tool 8 / `ros_control_giorgia`):

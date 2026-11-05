@@ -227,6 +227,14 @@ public:
 
 	}
 
+	// Angular velocity of the chain tip in the base frame
+	KDL::Vector computeAngularVel(KDL::JntArray& joint_states, KDL::JntArray& joint_states_velocities){
+		KDL::JntArrayVel j_vel(joint_states, joint_states_velocities);
+		KDL::FrameVel frame_vel;
+		fk_vel_solver_->JntToCart(j_vel,frame_vel);
+		return frame_vel.GetTwist().rot;
+	}
+
 
 private:
 	KDL::Chain kdl_chain_;

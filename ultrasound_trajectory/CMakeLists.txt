@@ -42,4 +42,6 @@ foreach(executable IN LISTS executables)
 endforeach()
 
 install(TARGETS ${executables} DESTINATION lib/${PROJECT_NAME})
+# Python nodes, run with ros2 run / launch like the C++ executables
+install(PROGRAMS scripts/drag_demonstration.py DESTINATION lib/${PROJECT_NAME})
 ament_package()

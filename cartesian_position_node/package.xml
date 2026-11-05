@@ -17,6 +17,10 @@
   <depend>orocos_kdl_vendor</depend>
   <depend>eigen</depend>
   <depend>boost</depend>
+  <depend>ament_index_cpp</depend>
+  <depend>yaml_cpp_vendor</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>

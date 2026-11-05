@@ -18,6 +18,7 @@ def generate_launch_description():
     tool = Path(get_package_share_directory('lwr_robot_tool'))
     lwr_hw = Path(get_package_share_directory('lwr_hw'))
     ros_gz_sim = Path(get_package_share_directory('ros_gz_sim'))
+    cartesian_position = Path(get_package_share_directory('cartesian_position_node'))
 
     # robotHW configurations (ROS 1: rosparam load hw_interface.yaml -> /lwr/root, /lwr/tip)
     hw_interface = yaml.safe_load((robot / 'config/hw_interface.yaml').read_text())['lwr']
@@ -34,14 +35,15 @@ def generate_launch_description():
     xacro_args = ' use_stiffness_joints:=false hw_root:={} hw_tip:={}'.format(hw_interface['root'], hw_interface['tip'])
 
     # the urdf/sdf parameter
-    robot_description = ParameterValue(Command([
+    robot_description_command = Command([
         FindExecutable(name='xacro'), ' ', str(tool / 'urdf/lwr_with_tool.urdf'),
         ' ros2_control_hardware_type:=', hardware_type,
         ' ros2_control_params_file:=', controllers,
         ' fri_port:=', LaunchConfiguration('port'),
         ' fri_ip:=', LaunchConfiguration('ip'),
         ' fri_init_file:=', LaunchConfiguration('file'),
-        xacro_args]), value_type=str)
+        xacro_args])
+    robot_description = ParameterValue(robot_description_command, value_type=str)
 
     return LaunchDescription([
         # LAUNCH INTERFACE
@@ -113,11 +115,11 @@ def generate_launch_description():
                  parameters=[{'config_file': str(robot / 'config/clock_bridge.yaml')}]),
         ]),
 
-        # ROS 1: args="/lwr/joint_states" (subscribed topic); the global /robot_description and
-        # /lwr/root, /lwr/tip (hw_interface.yaml) it read are passed as node parameters
-        Node(name='cartesian_position_node', package='cartesian_position_node', executable='cartesian_position_node',
-             arguments=['/lwr/joint_states'], respawn=False,
-             parameters=[{'robot_description': robot_description}, {'lwr': hw_interface}]),
+        # the tooltip is selected with tooltip:=<entry of tool_configuration.yaml>, declared by this launch file
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(str(cartesian_position / 'launch/cartesian_position.launch.py')),
+            launch_arguments={'robot_description': robot_description_command,
+                              'root': hw_interface['root'], 'tip': hw_interface['tip']}.items()),
 
         # load moveit configuration
         GroupAction(condition=IfCondition(LaunchConfiguration('load_moveit')), actions=[

@@ -13,6 +13,12 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
+def on_mouse(event, x, y, flags, clicked):
+    # Pixel index of the click in the image, frame[row, col] = frame[y, x]
+    if event == cv2.EVENT_LBUTTONDOWN:
+        clicked[:] = [x, y]
+        print("Clicked pixel: frame[" + str(y) + ", " + str(x) + "]")
+
 def main(args):
     # ROS 2: the node must exist before its publisher (ROS 1 created the publisher first)
     rclpy.init(args=args)
@@ -29,14 +35,24 @@ def main(args):
     cv_image.set(cv2.CAP_PROP_FRAME_WIDTH,1280) # cv2.cv.CV_CAP_PROP_FRAME_
     cv_image.set(cv2.CAP_PROP_FRAME_HEIGHT,800)
 
+    # The window has to exist before its mouse callback is set
+    clicked = []
+    cv2.namedWindow('frame')
+    cv2.setMouseCallback('frame', on_mouse, clicked)
+
     try:
         while rclpy.ok():
             # Capture the video frame by frame 
             ret, frame = cv_image.read()
-            print("Image dimensions:" + str(frame.shape)) 
+            # print("Image dimensions:" + str(frame.shape)) 
         
-            # Display the resulting frame 
-            cv2.imshow('frame', frame)
+            # Display the resulting frame, with the last click drawn on a copy so that it is not published
+            display = frame.copy()
+            if clicked:
+                x, y = clicked
+                cv2.drawMarker(display, (x, y), (0, 255, 0), cv2.MARKER_CROSS, 20, 1)
+                cv2.putText(display, "frame[" + str(y) + ", " + str(x) + "]", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            cv2.imshow('frame', display)
             cv2.waitKey(1)
 
             # Publish image

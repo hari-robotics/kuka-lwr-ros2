@@ -5,6 +5,7 @@
 //#include "geometry_msgs/msg/vector3.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <string>
+#include <stdexcept>
 #include <kdl/tree.hpp>
 #include <kdl/kdl.hpp>
 #include <kdl/chain.hpp>
@@ -13,6 +14,8 @@
 #include <control_msgs/msg/joint_controller_state.hpp> 
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/jntarray.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <yaml-cpp/yaml.h>
 //#include <kdl/jointarrayvel.hpp>
 #ifndef CARTESIAN_POSITION_NODE
 #define CARTESIAN_POSITION_NODE
@@ -22,7 +25,8 @@
 #include <iostream>
 
 
-void reorder(std::vector<double>& vA, std::vector<size_t>& vI)  
+// vI is taken by value: the algorithm sorts it, and the same order is applied to several vectors
+void reorder(std::vector<double>& vA, std::vector<size_t> vI)  
 {
 size_t i, j, k;
     for(i = 0; i < vA.size(); i++){ 
@@ -48,6 +52,16 @@ public:
 
 		fk_.init(n);
 
+		// Tooltip position in the end-effector (lwr_7_link) frame (mm -> m): the entry of tool_configuration.yaml
+		// selected by the "tooltip" parameter
+		const std::string tooltip_name = n->declare_parameter<std::string>("tooltip", "sim_tooltip");
+		const std::string tool_config = ament_index_cpp::get_package_share_directory("cartesian_position_node") + "/config/tool_configuration.yaml";
+		const YAML::Node tooltip = YAML::LoadFile(tool_config)[tooltip_name];
+		if (!tooltip)
+			throw std::runtime_error("No tooltip '" + tooltip_name + "' in " + tool_config);
+		tool_offset_ = KDL::Vector(tooltip["x"].as<double>(), tooltip["y"].as<double>(), tooltip["z"].as<double>()) / 1000.0;
+		RCLCPP_INFO(n_->get_logger(), "Tooltip %s in the end-effector frame [m]: %f %f %f (%s)", tooltip_name.c_str(),
+			tool_offset_.x(), tool_offset_.y(), tool_offset_.z(), tool_config.c_str());
 
 	}
 
@@ -78,14 +92,10 @@ public:
 			q(i) = js[i];
 			q_dot(i) = js_dot[i];
 		}
-		float tool_length;
-		
-		// tool_length=0.22; //0.275
-		tool_length=0.252;
-
 		float d1 = 0.4; 
 		float d2 = 0.39; 
-		float d3 = tool_length+0.078; 
+		// The analytic Jacobian only takes an offset along the flange z axis; the x, y part of the tooltip is added below
+		float d3 = tool_offset_.z()+0.078; 
 		float d4 = 0.078;
 
 
@@ -115,10 +125,8 @@ public:
 		ee_pub_->publish(pose_);
 		ee_vel_pub_->publish(vel_); //comment JLF 2022-12-19
 
-		float tip[3];
-		tip[0]=x.M(0,2)*tool_length;
-		tip[1]=x.M(1,2)*tool_length;
-		tip[2]=x.M(2,2)*tool_length;
+		// Tooltip offset expressed in the base frame
+		KDL::Vector tip = x.M*tool_offset_;
 		std::cout << tip[0]<< " "<<tip[1]<< " "<<tip[2]<<std::endl;
 		x.p[0]=x.p[0]+tip[0];
 		x.p[1]=x.p[1]+tip[1];
@@ -130,6 +138,11 @@ public:
 		pose_.pose.position.z = x.p.z();
 
 		fk_.computeVel(q,q_dot,x_dot,d1,d2,d3);
+
+		// Velocity of the tooltip x, y offset: w x (R*r_xy)
+		KDL::Vector tip_xy_vel = fk_.computeAngularVel(q,q_dot)*(x.M*KDL::Vector(tool_offset_.x(), tool_offset_.y(), 0.0));
+		for (int i=0; i<3; i++)
+			x_dot.at(i) += tip_xy_vel[i];
 
 
 
@@ -170,6 +183,7 @@ private:
 	geometry_msgs::msg::TwistStamped vel_previous_;
 	ForwardKinematics fk_;
 	rclcpp::Node::SharedPtr n_;
+	KDL::Vector tool_offset_;
 
 };
 

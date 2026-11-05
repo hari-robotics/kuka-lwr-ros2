@@ -1,0 +1,16 @@
+# Tooltip position in the end-effector frame (lwr_7_link), 
+# unit: mm (read by cartesian_position_node)
+needle_cali_tooltip:
+  x: -0.659
+  y: 2.619
+  z: 196.819
+
+pin_cali_tooltip:
+  x: 0.980
+  y: 0.018
+  z: 128.706
+
+sim_tooltip:
+  x: 0
+  y: 0
+  z: 252
