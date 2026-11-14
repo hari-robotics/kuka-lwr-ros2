@@ -26,6 +26,8 @@ add_executable(ultrasound_traj_cartesian_node src/ultrasound_traj_cartesian_node
 add_executable(pose_init src/pose_init.cpp)
 add_executable(ee_incremental_motion src/ee_incremental_motion.cpp)
 add_executable(ee_incremental_impedance_node src/ee_incremental_impedance_node.cpp)
+# 100 Hz interpolation between the targets of the ACT policy (nearlab/controllers, controllers.deploy.act_policy)
+add_executable(trajectory_interpolation_node src/trajectory_interpolation_node.cpp)
 add_executable(tool_relative_motion_node
   src/tool_relative_motion_node.cpp
   src/se3_trajectory.cpp
@@ -35,7 +37,7 @@ add_executable(tool_relative_motion_node
 
 set(executables ultrasound_traj_node linear_traj_node linear_traj_node_Luca pose_initialization
   ultrasound_traj_cartesian_node pose_init ee_incremental_motion ee_incremental_impedance_node
-  tool_relative_motion_node)
+  tool_relative_motion_node trajectory_interpolation_node)
 foreach(executable IN LISTS executables)
   ament_target_dependencies(${executable} ${dependencies})
   target_link_libraries(${executable} Eigen3::Eigen)

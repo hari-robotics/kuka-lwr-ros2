@@ -378,12 +378,16 @@ namespace lwr_controllers
 
     }
 
+    // KDL::Stiffness / KDL::Wrench order: [x, y, z, rx, ry, rz]
+    // FRI cartStiffness/cartDamping/addTcpFT order (friComm.h): [x, y, z, A(Rz), B(Ry), C(Rx)]
+    static constexpr int kFriToKdlCartIdx[6] = {0, 1, 2, 5, 4, 3};
+
     void CartesianImpedanceController::fromKDLtoFRI(const KDL::Stiffness& in, std::vector<double>& out)
     {
         assert(out.size() == 6);
         for( int d = 0; d < 6; ++d)
         {
-            out[d] = in[d];
+            out[d] = in[kFriToKdlCartIdx[d]];
         }
     }
 
@@ -393,9 +397,9 @@ namespace lwr_controllers
         out[0] = in.force.x();
         out[1] = in.force.y();
         out[2] = in.force.z();
-        out[3] = in.torque.x();
+        out[3] = in.torque.z();
         out[4] = in.torque.y();
-        out[5] = in.torque.z();
+        out[5] = in.torque.x();
     }
 
     void CartesianImpedanceController::fromFRItoKDL(const std::vector<double>& in, KDL::Frame& out)
@@ -410,14 +414,14 @@ namespace lwr_controllers
     void CartesianImpedanceController::fromFRItoKDL(const std::vector<double>& in, KDL::Stiffness& out)
     {
         assert(in.size() == 6);
-        KDL::Stiffness s(in[0], in[1], in[2], in[3], in[4], in[5]);
+        KDL::Stiffness s(in[0], in[1], in[2], in[5], in[4], in[3]);  // FRI [.., A=Rz, B=Ry, C=Rx] -> KDL [.., rx, ry, rz]
         out = s;
     }
 
     void CartesianImpedanceController::fromFRItoKDL(const std::vector<double>& in, KDL::Wrench& out)
     {
         assert(in.size() == 6);
-        KDL::Wrench w(KDL::Vector(in[0], in[1], in[2]), KDL::Vector(in[3], in[4], in[5]));
+        KDL::Wrench w(KDL::Vector(in[0], in[1], in[2]), KDL::Vector(in[5], in[4], in[3]));  // FRI [.., Tz, Ty, Tx] -> KDL torque (x, y, z)
         out = w;
     }
 
@@ -429,11 +433,11 @@ namespace lwr_controllers
             if(c < 12)
                 cart_handles_.at(c).setCommand(cur_T_FRI_[c]);
             else if(c < 18)
-                cart_handles_.at(c).setCommand(k_des_[c-12]);
+                cart_handles_.at(c).setCommand(k_des_[kFriToKdlCartIdx[c-12]]);  // handles _X.._C are in FRI order
             else if(c < 24)
-                cart_handles_.at(c).setCommand(d_des_[c-18]);
+                cart_handles_.at(c).setCommand(d_des_[kFriToKdlCartIdx[c-18]]);
             else if(c < 30)
-                cart_handles_.at(c).setCommand(f_des_[c-24]);
+                cart_handles_.at(c).setCommand(f_des_[kFriToKdlCartIdx[c-24]]);
         }
     }
 

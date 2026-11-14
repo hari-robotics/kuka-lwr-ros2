@@ -35,6 +35,7 @@
 - **JointImpedanceController**：订阅 `/est_ext_torque`（lwr_hw 发布）与 `/stiffness`（回调为空，同 ROS1），发布 `/velocity`、`/velocity_jac`、`/cartesian_forces`；`command` 接受 7 维关节角或 6 维（只取前 3 维位置）；每周期写 effort = τ_task + τ_null，stiffness/damping 指令 0，set_point = 测量关节角。ROS1 在 init() 中从句柄读取的 K/D/q_des/q_start 在 ROS2 configure 时不可用：K/D/q_des 取默认后由 `stiffness_gains`/`damping_gains` 覆盖（同前次移植），`q_start_` 改在第一次 starting() 读取（`TODO(ros2-migration)`）。
 - **OneTaskInverseKinematics**：`n.param("task_space_gain", …, 1.0)` → 参数缺省 1.0；`ROS_WARN_THROTTLE(1.0, …)` → `RCLCPP_WARN_THROTTLE(…, 1000, …)`。init() 中读关节位置/打印初始位姿的代码保留在 configure（此时状态接口未借出，读数为 0，`TODO(ros2-migration)`）；实验室新增的 starting() 重新同步当前位姿，行为以它为准。
 - **CartesianImpedanceController**：`ros::param::search("robot_description")` → 控制器节点参数 `robot_description`（与 KinematicChainControllerBase 相同来源）；`n.shutdown()` 无对应，configure 返回 false；`/velocity_ee` 速度计算需要关节位置/速度，on_activate 中为 6 个关节句柄绑定 position/velocity/effort 状态接口（ROS1 由 PositionCartesianInterface 的关节句柄提供）。
+- **CartesianImpedanceController 刚度/阻尼轴序修正（2026-11-14，偏离 ROS1）**：FRI `cartStiffness`/`cartDamping` 的布局是 `[x, y, z, A(Rz), B(Ry), C(Rx)]`（friComm.h），而 `KDL::Stiffness` 与 `k_fri`/`d_fri` 消息是 `[x, y, z, rx, ry, rz]`；ROS1 按下标直接写入 `_A/_B/_C_stiffness|damping` 句柄，导致 rx 与 rz 对调。附加力/力矩同理：FRI `addTcpFT` 为 `[Fx, Fy, Fz, Tz, Ty, Tx]`，ROS1 写入 `_wrench` 句柄时 Tx 与 Tz 对调。现在 `forwardCmdFRI` 对刚度、阻尼、wrench 都通过 `{0,1,2,5,4,3}` 重排，`fromKDLtoFRI/fromFRItoKDL` 的 Stiffness 与 Wrench 重载也按 FRI 顺序转换。
 
 ## launch 对照
 ### load_controller.launch → load_controller.launch.py
