@@ -1,7 +1,7 @@
 /*
  * trajectory_interpolation_node.cpp
  *
- * Interpolation between the target poses of a low-rate publisher (the ACT policy, controllers.deploy.act_policy in
+ * Interpolation between the target poses of a low-rate publisher (the ACT policy, act.entry.infer in
  * nearlab/controllers, one target per ultrasound frame at ~10 Hz), streamed to the Cartesian impedance controller as
  * lwr_controllers/CartesianImpedancePoint at ~command_rate (100 Hz). A process of its own (and C++) so that the
  * 100 Hz loop and the inference do not share a Python interpreter (GIL).
@@ -30,7 +30,7 @@
  * only published on ~/command_preview, not to the controller.
  *
  * Topic in  : ~pose_topic    (default /cartesian_position/pose/end_effector, lwr_controllers/PoseRPYStamped)
- * Topic in  : ~target_topic  (default /act_policy/target, geometry_msgs/PoseStamped, lwr_7_link in the base frame)
+ * Topic in  : ~target_topic  (default /policy/target, geometry_msgs/PoseStamped, lwr_7_link in the base frame)
  * Topic out : ~command_topic (default /lwr/cartesian_impedance_controller/command, CartesianImpedancePoint)
  * Topic out : ~/command_preview (geometry_msgs/PoseStamped)
  *
@@ -120,7 +120,7 @@ class TrajectoryInterpolationNode : public rclcpp::Node {
 public:
     TrajectoryInterpolationNode() : rclcpp::Node("trajectory_interpolation") {
         const auto pose_topic = declare_parameter<std::string>("pose_topic", "/cartesian_position/pose/end_effector");
-        const auto target_topic = declare_parameter<std::string>("target_topic", "/act_policy/target");
+        const auto target_topic = declare_parameter<std::string>("target_topic", "/policy/target");
         const auto command_topic =
             declare_parameter<std::string>("command_topic", "/lwr/cartesian_impedance_controller/command");
 
@@ -333,7 +333,7 @@ int main(int argc, char **argv) {
     rclcpp::executors::SingleThreadedExecutor executor;
     executor.add_node(node);
     while (rclcpp::ok() && !interrupted && !node->holding()) executor.spin_once(std::chrono::milliseconds(50));
-    // Non-zero on a stop condition, as act_policy: the launch file stops the policy with it
+    // Non-zero on a stop condition, as the policy node
     const bool stopped = node->holding();
     node->shut_down();
     // Time for DDS to deliver the hold command before the participant goes away

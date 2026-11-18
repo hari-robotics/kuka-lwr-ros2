@@ -26,7 +26,7 @@ add_executable(ultrasound_traj_cartesian_node src/ultrasound_traj_cartesian_node
 add_executable(pose_init src/pose_init.cpp)
 add_executable(ee_incremental_motion src/ee_incremental_motion.cpp)
 add_executable(ee_incremental_impedance_node src/ee_incremental_impedance_node.cpp)
-# 100 Hz interpolation between the targets of the ACT policy (nearlab/controllers, controllers.deploy.act_policy)
+# 100 Hz interpolation between the targets of the ACT policy (nearlab/controllers, act.entry.infer)
 add_executable(trajectory_interpolation_node src/trajectory_interpolation_node.cpp)
 add_executable(tool_relative_motion_node
   src/tool_relative_motion_node.cpp
