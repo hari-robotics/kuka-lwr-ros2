@@ -68,12 +68,12 @@ def main():
 
    # Standard values for k and d (rclpy float64 fields reject int, hence 50.0 instead of 50)
    #k = [800, 800, 800, 100, 100, 100]
-   stiffness.x = 20.0 #100
-   stiffness.y = 20.0
-   stiffness.z = 20.0
-   stiffness.rx = 20.0 # 100
-   stiffness.ry = 20.0
-   stiffness.rz = 20.0
+   stiffness.x = 400.0 #100
+   stiffness.y = 400.0
+   stiffness.z = 600.0
+   stiffness.rx = 40.0 # 100
+   stiffness.ry = 40.0
+   stiffness.rz = 40.0
 
    #d = [0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
    damping.x = 0.8
@@ -86,7 +86,7 @@ def main():
       # wrench
    wrench.force.x = 0.0
    wrench.force.y = 0.0
-   wrench.force.z = 0.0
+   wrench.force.z = 3.0
    wrench.torque.x = 0.0
    wrench.torque.y = 0.0
    wrench.torque.z = 0.0

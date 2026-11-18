@@ -23,17 +23,12 @@ def spin(node):
     except ExternalShutdownException:
         pass
 
-def mouse_callback(event,x,y,flags,param):
-    if event == cv2.EVENT_MOUSEMOVE:
-        pixel_value = param[y,x]
-        print(x,y)
-
 def main(args):
     # ROS 2: the node must exist before its publishers (ROS 1 created the publisher first)
     rclpy.init(args=args)
     node = rclpy.create_node('image_topic_node_cropped')
     #image_pub = node.create_publisher(Image, "/frame_grabber/image_topic", 30)
-    image_cropped_pub = node.create_publisher(Image, "/frame_grabber/image_cropped_topic", 2)
+    image_cropped_pub = node.create_publisher(Image, "/us_image", 2)
     bridge = CvBridge()
     # rclpy Rate needs the node spun in another thread; the loop below stays as in ROS 1
     spin_thread = threading.Thread(target=spin, args=(node,), daemon=True)
@@ -57,17 +52,7 @@ def main(args):
             #print("Image dimensions:" + str(frame.shape))
 
             #frame_cropped = frame[80:560,400:880] #to set
-            frame_cropped = frame[95:545,410:860] #to set
-            #print("Cropped image dimensions:" + str(frame.shape)) 
-
-            frame_cropped = cv2.resize(frame_cropped, (480,480))
-            #print("Resized image dimensions:" + str(frame.shape))
-
-            # Display the resulting frame
-            cv2.imshow('frame', frame_cropped)
-
-            cv2.setMouseCallback('frame',mouse_callback,frame_cropped)
-            cv2.waitKey(1)
+            frame_cropped = frame[93:572, 403:877] #to set
 
             # Publish image
             try:

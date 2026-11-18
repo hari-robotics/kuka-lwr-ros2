@@ -23,7 +23,7 @@ def main(args):
     # ROS 2: the node must exist before its publisher (ROS 1 created the publisher first)
     rclpy.init(args=args)
     node = rclpy.create_node('image_topic_node')
-    image_pub = node.create_publisher(Image, "image_topic", 1)
+    image_pub = node.create_publisher(Image, "/us_image_raw", 1)
     bridge = CvBridge()
     # rclpy Rate needs the node spun in another thread; the loop below stays as in ROS 1
     spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
@@ -33,7 +33,7 @@ def main(args):
     cv_image = cv2.VideoCapture(0)
     #Set resolution
     cv_image.set(cv2.CAP_PROP_FRAME_WIDTH,1280) # cv2.cv.CV_CAP_PROP_FRAME_
-    cv_image.set(cv2.CAP_PROP_FRAME_HEIGHT,800)
+    cv_image.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
 
     # The window has to exist before its mouse callback is set
     clicked = []

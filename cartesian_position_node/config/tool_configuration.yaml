@@ -5,10 +5,17 @@ needle_cali_tooltip:
   y: 2.619
   z: 196.819
 
+# 2026-11-05
+# pin_cali_tooltip:
+#   x: 0.980
+#   y: 0.018
+#   z: 128.706
+
+# 2026-11-18
 pin_cali_tooltip:
-  x: 0.980
-  y: 0.018
-  z: 128.706
+  x: -0.073
+  y: 1.619
+  z: 119.325
 
 sim_tooltip:
   x: 0
