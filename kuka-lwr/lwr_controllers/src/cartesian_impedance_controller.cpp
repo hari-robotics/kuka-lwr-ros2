@@ -229,7 +229,8 @@ namespace lwr_controllers
         x_des_ = x_ref_;
 
         // Initial Cartesian stiffness
-        KDL::Stiffness k( 800.0, 800.0, 200.0, 100.0, 100.0, 100.0 ); // 800,50 ; 
+        // Set a higher stiffness to prevent inaccurate tool calibration profile caused drifting
+        KDL::Stiffness k( 1500.0, 1500.0, 1500.0, 200.0, 200.0, 200.0 );  
         k_des_ = k;
 
         // Initial Cartesian damping
