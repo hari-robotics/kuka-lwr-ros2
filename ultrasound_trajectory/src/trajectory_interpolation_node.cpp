@@ -125,13 +125,13 @@ public:
             declare_parameter<std::string>("command_topic", "/lwr/cartesian_impedance_controller/command");
 
         // Impedance of the commands, defaults of ee_incremental_impedance_node
-        stiffness_linear_ = declare_parameter("stiffness_linear", 1500.0);    // [N/m]
+        stiffness_linear_ = declare_parameter("stiffness_linear", 4500.0);    // [N/m]
         stiffness_angular_ = declare_parameter("stiffness_angular", 250.0);   // [Nm/rad]
         damping_ = declare_parameter("damping", 0.8);                         // normalized damping ratio
         // Force control along the z axis of the end-effector frame, positive along +z as in linear_traj_node_Luca
-        contact_force_ = declare_parameter("contact_force", 0.0);             // [N]
+        contact_force_ = declare_parameter("contact_force", 0.6);             // [N]
         force_ramp_time_ = declare_parameter("force_ramp_time", 2.0);         // [s] from 0 to contact_force
-        stiffness_z_ = declare_parameter("stiffness_z", 200.0);               // [N/m] on the force controlled axis
+        stiffness_z_ = declare_parameter("stiffness_z", 20.0);               // [N/m] on the force controlled axis
         const double max_contact_force = declare_parameter("max_contact_force", 15.0);  // [N] refused above
         if (std::abs(contact_force_) > max_contact_force)
             throw std::invalid_argument("|contact_force| > max_contact_force");
@@ -142,7 +142,7 @@ public:
         if (max_z_travel_ <= 0.0) throw std::invalid_argument("max_z_travel must be > 0");
 
         command_rate_ = declare_parameter("command_rate", 100.0);             // [Hz]
-        max_linear_vel_ = declare_parameter("max_linear_vel", 0.02);          // [m/s]
+        max_linear_vel_ = declare_parameter("max_linear_vel", 0.08);          // [m/s]
         max_angular_vel_ = declare_parameter("max_angular_vel", 0.2);         // [rad/s]
         pose_timeout_ = declare_parameter("pose_timeout", 0.5);               // [s]
         // [s] without a target (3 frames at 10 FPS) before holding for good; also the longest segment followed

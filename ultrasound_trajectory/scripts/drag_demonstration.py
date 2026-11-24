@@ -86,7 +86,7 @@ def main():
       # wrench
    wrench.force.x = 0.0
    wrench.force.y = 0.0
-   wrench.force.z = 3.0
+   wrench.force.z = 0.0
    wrench.torque.x = 0.0
    wrench.torque.y = 0.0
    wrench.torque.z = 0.0

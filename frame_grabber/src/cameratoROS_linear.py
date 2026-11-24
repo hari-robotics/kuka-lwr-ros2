@@ -33,7 +33,7 @@ def main(args):
     # rclpy Rate needs the node spun in another thread; the loop below stays as in ROS 1
     spin_thread = threading.Thread(target=spin, args=(node,), daemon=True)
     spin_thread.start()
-    rate = node.create_rate(10)
+    rate = node.create_rate(8)
 
     cv_image = cv2.VideoCapture(0)
     #Set resolution
